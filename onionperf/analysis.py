@@ -10,8 +10,8 @@ import os, re, json, datetime, logging
 from abc import ABCMeta, abstractmethod
 
 # stem imports
-from stem import CircEvent, CircStatus, CircPurpose, StreamStatus
-from stem.response.events import CircuitEvent, CircMinorEvent, StreamEvent, BuildTimeoutSetEvent
+from stem import CircEvent, CircStatus, CircPurpose, StreamStatus, GuardStatus, GuardType
+from stem.response.events import CircuitEvent, CircMinorEvent, StreamEvent, BuildTimeoutSetEvent, GuardEvent
 from stem.response import ControlMessage, convert
 
 # tgentools imports
@@ -94,6 +94,12 @@ class OPAnalysis(Analysis):
     def get_tgen_transfers(self, node):
         try:
             return self.json_db['data'][node]['tgen']['transfers']
+        except:
+            return None
+
+    def get_tor_guards(self, node):
+        try:
+            return self.json_db['data'][node]['tor']['guards']
         except:
             return None
 
@@ -275,6 +281,24 @@ class TorCircuit(object):
                (event, arrived_at) for (event, arrived_at) in
                sorted(self.elapsed_seconds, key=lambda item: item[1])])))
 
+class TorGuard(object):
+    def __init__(self, fingerprint, nickname, up_ts=None, down_ts=None, dropped_ts=None):
+        self.fingerprint = fingerprint
+        self.nickname = nickname
+        self.up_ts = up_ts
+        self.down_ts = down_ts
+        self.dropped_ts = dropped_ts
+
+    def is_down_or_dropped(self):
+        return self.down_ts is not None or self.dropped_ts is not None
+
+    def get_data(self):
+        d = self.__dict__
+        if d['up_ts'] is None: del(d['up_ts'])
+        if d['down_ts'] is None: del(d['down_ts'])
+        if d['dropped_ts'] is None: del(d['dropped_ts'])
+        return d
+
 class TorCtlParser(Parser):
 
     def __init__(self, date_filter=None):
@@ -283,6 +307,7 @@ class TorCtlParser(Parser):
         self.circuits = {}
         self.streams_state = {}
         self.streams = {}
+        self.guards = []
         self.name = None
         self.boot_succeeded = False
         self.build_timeout_last = None
@@ -371,6 +396,29 @@ class TorCtlParser(Parser):
         self.build_timeout_last = event.timeout
         self.build_quantile_last = event.quantile
 
+    def __handle_guard(self, event, arrival_dt):
+        if event.guard_type != GuardType.ENTRY:
+            return
+        fingerprint = event.endpoint_fingerprint
+        nickname = event.endpoint_nickname
+        guard = None
+        for g in reversed(self.guards):
+            if g.fingerprint == fingerprint:
+                guard = g
+                break
+        if event.status == GuardStatus.UP:
+            self.guards.append(TorGuard(fingerprint=fingerprint, nickname=nickname, up_ts=arrival_dt))
+        elif event.status == GuardStatus.DROPPED:
+            if guard:
+                guard.dropped_ts = arrival_dt
+            else:
+                self.guards.append(TorGuard(fingerprint=fingerprint, nickname=nickname, dropped_ts=arrival_dt))
+        elif event.status == GuardStatus.DOWN:
+            if guard:
+                guard.down_ts = arrival_dt
+            else:
+                self.guards.append(TorGuard(fingerprint=fingerprint, nickname=nickname, down_ts=arrival_dt))
+
     def __handle_event(self, event, arrival_dt):
         if isinstance(event, (CircuitEvent, CircMinorEvent)):
             self.__handle_circuit(event, arrival_dt)
@@ -378,6 +426,8 @@ class TorCtlParser(Parser):
             self.__handle_stream(event, arrival_dt)
         elif isinstance(event, BuildTimeoutSetEvent):
             self.__handle_buildtimeout(event, arrival_dt)
+        elif isinstance(event, GuardEvent):
+            self.__handle_guard(event, arrival_dt)
 
     def __is_date_valid(self, date_to_check):
         if self.date_filter is None:
@@ -433,7 +483,8 @@ class TorCtlParser(Parser):
         source.close()
 
     def get_data(self):
-        return {'circuits': self.circuits, 'streams': self.streams}
+        return {'circuits': self.circuits, 'streams': self.streams,
+                'guards': [guard.get_data() for guard in self.guards]}
 
     def get_name(self):
         return self.name

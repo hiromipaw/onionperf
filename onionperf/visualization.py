@@ -7,7 +7,7 @@
 
 import matplotlib; matplotlib.use('Agg')  # for systems without X11
 from matplotlib.backends.backend_pdf import PdfPages
-import time
+import time, re
 from abc import abstractmethod, ABCMeta
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -49,15 +49,37 @@ class TGenVisualization(Visualization):
             self.__plot_downloads_count()
             self.__plot_errors_count()
             self.__plot_errors_time()
+            self.__plot_guards_time()
+            self.__plot_uses_guards_time()
             self.page.close()
 
     def __extract_data_frame(self):
         streams = []
         for (analyses, label) in self.datasets:
+            tor_guards_by_client = {}
             for analysis in analyses:
                 for client in analysis.get_nodes():
+                    known_guards = tor_guards_by_client.setdefault(client, [])
+                    for guard in analysis.get_tor_guards(client):
+                        if "up_ts" not in guard:
+                            _guard = None
+                            for g in reversed(known_guards):
+                                if g["fingerprint"] == guard["fingerprint"]:
+                                    _guard = g
+                                    break
+                            if _guard and "dropped_ts" not in _guard and "down_ts" not in _guard:
+                                if "dropped_ts" in guard:
+                                    _guard["dropped_ts"] = guard["dropped_ts"]
+                                if "down_ts" in guard:
+                                    _guard["down_ts"] = guard["down_ts"]
+                                continue
+                        known_guards.append(guard)
+            for analysis in analyses:
+                for client in analysis.get_nodes():
+                    tor_guards = analysis.get_tor_guards(client)
                     tor_streams_by_source_port = {}
                     tor_streams = analysis.get_tor_streams(client)
+                    fingerprint_pattern = re.compile("\$?([0-9a-fA-F]{40})")
                     for tor_stream in tor_streams.values():
                         if "source" in tor_stream and ":" in tor_stream["source"]:
                             source_port = tor_stream["source"].split(":")[1]
@@ -124,17 +146,28 @@ class TGenVisualization(Visualization):
                                 unix_ts_end = transfer_data["unix_ts_end"]
                             if "unix_ts_start" in transfer_data:
                                 stream["start"] = datetime.datetime.utcfromtimestamp(transfer_data["unix_ts_start"])
-                        tor_stream = None
                         tor_circuit = None
-                        if source_port and source_port in tor_streams_by_source_port and unix_ts_end:
-                            for s in tor_streams_by_source_port[source_port]:
-                                if abs(unix_ts_end - s["unix_ts_end"]) < 150.0:
-                                    tor_stream = s
-                                    break
-                        if tor_stream and "circuit_id" in tor_stream:
-                            circuit_id = tor_stream["circuit_id"]
-                            if str(circuit_id) in tor_circuits:
-                                tor_circuit = tor_circuits[circuit_id]
+                        if source_port and unix_ts_end:
+                            for tor_stream in tor_streams_by_source_port[source_port]:
+                                if abs(unix_ts_end - tor_stream["unix_ts_end"]) < 150.0:
+                                    circuit_id = tor_stream["circuit_id"]
+                        if circuit_id and str(circuit_id) in tor_circuits:
+                            tor_circuit = tor_circuits[circuit_id]
+                            if client in tor_guards_by_client:
+                                guards = []
+                                for guard in tor_guards_by_client[client]:
+                                    if "up_ts" in guard and tor_circuit["unix_ts_start"] >= guard["up_ts"] and \
+                                            ("down_ts" not in guard or tor_circuit["unix_ts_start"] < guard["down_ts"]) and \
+                                            ("dropped_ts" not in guard or tor_circuit["unix_ts_start"] < guard["dropped_ts"]):
+                                        guards.append(guard["fingerprint"])
+                                stream["guards"] = int(len(guards))
+                            path = tor_circuit["path"]
+                            if path:
+                                long_name, _ = path[0]
+                                fingerprint_match = fingerprint_pattern.match(long_name)
+                                if fingerprint_match:
+                                    fingerprint = fingerprint_match.group(1).upper()
+                                    stream["uses_guard"] = fingerprint in guards
                         if error_code:
                             if error_code == "PROXY":
                                 error_code_parts = ["TOR"]
@@ -231,6 +264,20 @@ class TGenVisualization(Visualization):
                                      data=self.data[self.data["server"] == server],
                                      xlabel="Download start time", ylabel="Error code",
                                      title="Downloads failed over time from {0} service".format(server))
+
+    def __plot_guards_time(self):
+        if self.data["guards"].count() > 0:
+            self.__draw_timeplot(x="start", y="guards", hue="label", hue_name="Data set",
+                                 data=self.data,
+                                 xlabel="Download start time", ylabel="Guards",
+                                 title="Number of guards over time")
+
+    def __plot_uses_guards_time(self):
+        if self.data["uses_guard"].count() > 0:
+            self.__draw_timeplot(x="start", y="uses_guard", hue="label", hue_name="Data set",
+                                 data=self.data,
+                                 xlabel="Download start time", ylabel="Guard usage",
+                                 title="Guard usage over time")
 
     def __draw_ecdf(self, x, hue, hue_name, data, title, xlabel, ylabel):
         data = data.dropna(subset=[x])
