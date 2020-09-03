@@ -51,6 +51,7 @@ class TGenVisualization(Visualization):
             self.__plot_errors_time()
             self.__plot_guards_time()
             self.__plot_uses_guards_time()
+            self.__plot_guard_index_time()
             self.page.close()
 
     def __extract_data_frame(self):
@@ -61,22 +62,18 @@ class TGenVisualization(Visualization):
                 for client in analysis.get_nodes():
                     known_guards = tor_guards_by_client.setdefault(client, [])
                     for guard in analysis.get_tor_guards(client):
-                        if "up_ts" not in guard:
+                        if "new_ts" not in guard:
                             _guard = None
                             for g in reversed(known_guards):
                                 if g["fingerprint"] == guard["fingerprint"]:
                                     _guard = g
                                     break
-                            if _guard and "dropped_ts" not in _guard and "down_ts" not in _guard:
-                                if "dropped_ts" in guard:
-                                    _guard["dropped_ts"] = guard["dropped_ts"]
-                                if "down_ts" in guard:
-                                    _guard["down_ts"] = guard["down_ts"]
+                            if _guard and "dropped_ts" not in _guard:
+                                _guard["dropped_ts"] = guard["dropped_ts"]
                                 continue
                         known_guards.append(guard)
             for analysis in analyses:
                 for client in analysis.get_nodes():
-                    tor_guards = analysis.get_tor_guards(client)
                     tor_streams_by_source_port = {}
                     tor_streams = analysis.get_tor_streams(client)
                     fingerprint_pattern = re.compile("\$?([0-9a-fA-F]{40})")
@@ -157,7 +154,6 @@ class TGenVisualization(Visualization):
                                 guards = []
                                 for guard in tor_guards_by_client[client]:
                                     if "up_ts" in guard and tor_circuit["unix_ts_start"] >= guard["up_ts"] and \
-                                            ("down_ts" not in guard or tor_circuit["unix_ts_start"] < guard["down_ts"]) and \
                                             ("dropped_ts" not in guard or tor_circuit["unix_ts_start"] < guard["dropped_ts"]):
                                         guards.append(guard["fingerprint"])
                                 stream["guards"] = int(len(guards))
@@ -167,7 +163,12 @@ class TGenVisualization(Visualization):
                                 fingerprint_match = fingerprint_pattern.match(long_name)
                                 if fingerprint_match:
                                     fingerprint = fingerprint_match.group(1).upper()
+                                    stream["guard"] = fingerprint # TODO temp remove later
                                     stream["uses_guard"] = fingerprint in guards
+                                    try:
+                                        stream["guard_index"] = guards.index(fingerprint)
+                                    except:
+                                        stream["guard_index"] = -1
                         if error_code:
                             if error_code == "PROXY":
                                 error_code_parts = ["TOR"]
@@ -272,6 +273,13 @@ class TGenVisualization(Visualization):
                                  xlabel="Download start time", ylabel="Guards",
                                  title="Number of guards over time")
 
+    def __plot_guard_index_time(self):
+        if self.data["guard_index"].count() > 0:
+            self.__draw_timeplot(x="start", y="guard_index", hue="label", hue_name="Data set",
+                                 data=self.data,
+                                 xlabel="Download start time", ylabel="Guard index",
+                                 title="Guard index over time")
+
     def __plot_uses_guards_time(self):
         if self.data["uses_guard"].count() > 0:
             self.__draw_timeplot(x="start", y="uses_guard", hue="label", hue_name="Data set",
@@ -312,11 +320,12 @@ class TGenVisualization(Visualization):
         data = data.rename(columns={hue: hue_name})
         xmin = data[x].min()
         xmax = data[x].max()
+        ymin = data[y].min()
         ymax = data[y].max()
         g = sns.scatterplot(data=data, x=x, y=y, hue=hue_name, alpha=0.5)
         g.set(title=title, xlabel=xlabel, ylabel=ylabel,
               xlim=(xmin - 0.03 * (xmax - xmin), xmax + 0.03 * (xmax - xmin)),
-              ylim=(-0.05 * ymax, ymax * 1.05))
+              ylim=(ymin - 0.05 * (ymax - ymin), ymax + 0.05 * (ymax - ymin)))
         plt.xticks(rotation=10)
         sns.despine()
         self.page.savefig()

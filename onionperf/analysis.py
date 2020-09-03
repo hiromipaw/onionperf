@@ -282,18 +282,17 @@ class TorCircuit(object):
                sorted(self.elapsed_seconds, key=lambda item: item[1])])))
 
 class TorGuard(object):
-    def __init__(self, fingerprint, nickname, up_ts=None, down_ts=None, dropped_ts=None):
+    def __init__(self, fingerprint, nickname):
         self.fingerprint = fingerprint
         self.nickname = nickname
-        self.up_ts = up_ts
-        self.down_ts = down_ts
-        self.dropped_ts = dropped_ts
-
-    def is_down_or_dropped(self):
-        return self.down_ts is not None or self.dropped_ts is not None
+        self.new_ts = None
+        self.up_ts = None
+        self.down_ts = None
+        self.dropped_ts = None
 
     def get_data(self):
         d = self.__dict__
+        if d['new_ts'] is None: del(d['new_ts'])
         if d['up_ts'] is None: del(d['up_ts'])
         if d['down_ts'] is None: del(d['down_ts'])
         if d['dropped_ts'] is None: del(d['dropped_ts'])
@@ -406,18 +405,18 @@ class TorCtlParser(Parser):
             if g.fingerprint == fingerprint:
                 guard = g
                 break
-        if event.status == GuardStatus.UP:
-            self.guards.append(TorGuard(fingerprint=fingerprint, nickname=nickname, up_ts=arrival_dt))
-        elif event.status == GuardStatus.DROPPED:
-            if guard:
-                guard.dropped_ts = arrival_dt
-            else:
-                self.guards.append(TorGuard(fingerprint=fingerprint, nickname=nickname, dropped_ts=arrival_dt))
-        elif event.status == GuardStatus.DOWN:
-            if guard:
-                guard.down_ts = arrival_dt
-            else:
-                self.guards.append(TorGuard(fingerprint=fingerprint, nickname=nickname, down_ts=arrival_dt))
+        if guard is None or guard.dropped_ts is not None:
+            guard = TorGuard(fingerprint=fingerprint, nickname=nickname)
+            self.guards.append(guard)
+        if event.status == GuardStatus.NEW and guard.new_ts is None:
+            guard.new_ts = arrival_dt
+        elif event.status == GuardStatus.UP and guard.up_ts is None:
+            guard.up_ts = arrival_dt
+            # TODO maybe this should be a list?
+        elif event.status == GuardStatus.DOWN and guard.down_ts is None:
+            guard.down_ts = arrival_dt
+        elif event.status == GuardStatus.DROPPED and guard.dropped_ts is None:
+            guard.dropped_ts = arrival_dt
 
     def __handle_event(self, event, arrival_dt):
         if isinstance(event, (CircuitEvent, CircMinorEvent)):
