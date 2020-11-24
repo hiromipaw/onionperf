@@ -1,3 +1,8 @@
+# Changes in version 0.9 - 2020-1?-??
+
+ - Avoid tracebacks when visualizing analysis files containing only
+   unsuccessful measurements. Fixes #44012.
+
 # Changes in version 0.8 - 2020-09-16
 
  - Add a new `onionperf filter` mode that takes an OnionPerf analysis

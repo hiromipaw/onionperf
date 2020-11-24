@@ -66,6 +66,7 @@ class TGenVisualization(Visualization):
                     tgen_streams = analysis.get_tgen_streams(client)
                     tgen_transfers = analysis.get_tgen_transfers(client)
                     while tgen_streams or tgen_transfers:
+                        stream = {"time_to_first_byte": None, "time_to_last_byte": None, "error_code": None, "mbps": None}
                         error_code = None
                         source_port = None
                         unix_ts_end = None
@@ -76,15 +77,15 @@ class TGenVisualization(Visualization):
                         # that value with unit megabits per second.
                         if tgen_streams:
                             stream_id, stream_data = tgen_streams.popitem()
-                            stream = {"id": stream_id, "label": label,
-                                      "filesize_bytes": int(stream_data["stream_info"]["recvsize"]),
-                                      "error_code": None}
+                            stream["id"] = stream_id
+                            stream["label"] = label
+                            stream["filesize_bytes"] = int(stream_data["stream_info"]["recvsize"])
                             stream["server"] = "onion" if ".onion:" in stream_data["transport_info"]["remote"] else "public"
                             if "time_info" in stream_data:
                                 s = stream_data["time_info"]
-                                if "usecs-to-first-byte-recv" in s:
+                                if "usecs-to-first-byte-recv" in s and float(s["usecs-to-first-byte-recv"]) >= 0:
                                     stream["time_to_first_byte"] = float(s["usecs-to-first-byte-recv"])/1000000
-                                if "usecs-to-last-byte-recv" in s:
+                                if "usecs-to-last-byte-recv" in s and float(s["usecs-to-last-byte-recv"]) >= 0:
                                     stream["time_to_last_byte"] = float(s["usecs-to-last-byte-recv"])/1000000
                             if "elapsed_seconds" in stream_data:
                                 s = stream_data["elapsed_seconds"]
@@ -100,9 +101,9 @@ class TGenVisualization(Visualization):
                                 stream["start"] = datetime.datetime.utcfromtimestamp(stream_data["unix_ts_start"])
                         elif tgen_transfers:
                             transfer_id, transfer_data = tgen_transfers.popitem()
-                            stream = {"id": transfer_id, "label": label,
-                                      "filesize_bytes": transfer_data["filesize_bytes"],
-                                      "error_code": None}
+                            stream["id"] = transfer_id
+                            stream["label"] = label
+                            stream["filesize_bytes"] = transfer_data["filesize_bytes"]
                             stream["server"] = "onion" if ".onion:" in transfer_data["endpoint_remote"] else "public"
                             if "elapsed_seconds" in transfer_data:
                                s = transfer_data["elapsed_seconds"]
@@ -125,7 +126,7 @@ class TGenVisualization(Visualization):
                                 stream["start"] = datetime.datetime.utcfromtimestamp(transfer_data["unix_ts_start"])
                         tor_stream = None
                         tor_circuit = None
-                        if source_port and unix_ts_end:
+                        if source_port and source_port in tor_streams_by_source_port and unix_ts_end:
                             for s in tor_streams_by_source_port[source_port]:
                                 if abs(unix_ts_end - s["unix_ts_end"]) < 150.0:
                                     tor_stream = s
@@ -233,6 +234,8 @@ class TGenVisualization(Visualization):
 
     def __draw_ecdf(self, x, hue, hue_name, data, title, xlabel, ylabel):
         data = data.dropna(subset=[x])
+        if data.empty:
+            return
         p0 = data[x].quantile(q=0.0, interpolation="lower")
         p99 = data[x].quantile(q=0.99, interpolation="higher")
         ranks = data.groupby(hue)[x].rank(pct=True)
@@ -255,8 +258,10 @@ class TGenVisualization(Visualization):
         plt.close()
 
     def __draw_timeplot(self, x, y, hue, hue_name, data, title, xlabel, ylabel):
-        plt.figure()
         data = data.dropna(subset=[y])
+        if data.empty:
+            return
+        plt.figure()
         data = data.rename(columns={hue: hue_name})
         xmin = data[x].min()
         xmax = data[x].max()
@@ -271,8 +276,10 @@ class TGenVisualization(Visualization):
         plt.close()
 
     def __draw_boxplot(self, x, y, data, title, xlabel, ylabel):
-        plt.figure()
         data = data.dropna(subset=[y])
+        if data.empty:
+            return
+        plt.figure()
         g = sns.boxplot(data=data, x=x, y=y, sym="")
         g.set(title=title, xlabel=xlabel, ylabel=ylabel, ylim=(0, None))
         sns.despine()
@@ -280,8 +287,10 @@ class TGenVisualization(Visualization):
         plt.close()
 
     def __draw_barplot(self, x, y, data, title, xlabel, ylabel):
-        plt.figure()
         data = data.dropna(subset=[y])
+        if data.empty:
+            return
+        plt.figure()
         g = sns.barplot(data=data, x=x, y=y, ci=None)
         g.set(title=title, xlabel=xlabel, ylabel=ylabel)
         sns.despine()
@@ -289,6 +298,8 @@ class TGenVisualization(Visualization):
         plt.close()
 
     def __draw_countplot(self, x, data, title, xlabel, ylabel, hue=None, hue_name=None):
+        if data.empty:
+            return
         plt.figure()
         if hue is not None:
             data = data.rename(columns={hue: hue_name})
@@ -299,6 +310,8 @@ class TGenVisualization(Visualization):
         plt.close()
 
     def __draw_stripplot(self, x, y, hue, hue_name, data, title, xlabel, ylabel):
+        if data.empty:
+            return
         plt.figure()
         data = data.rename(columns={hue: hue_name})
         xmin = data[x].min()
