@@ -1,7 +1,7 @@
 # Changes in version 0.9 - 2020-1?-??
 
  - Avoid tracebacks when visualizing analysis files containing only
-   unsuccessful measurements. Fixes #44012.
+   unsuccessful measurements. Fixes #40012.
 
 # Changes in version 0.8 - 2020-09-16
 
