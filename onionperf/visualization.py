@@ -298,25 +298,26 @@ class TGenVisualization(Visualization):
         plt.close()
 
     def __draw_countplot(self, x, data, title, xlabel, ylabel, hue=None, hue_name=None):
+        data = data.dropna(subset=[x])
         if data.empty:
             return
         plt.figure()
         if hue is not None:
             data = data.rename(columns={hue: hue_name})
-        g = sns.countplot(data=data.dropna(subset=[x]), x=x, hue=hue_name)
+        g = sns.countplot(data=data, x=x, hue=hue_name)
         g.set(xlabel=xlabel, ylabel=ylabel, title=title)
         sns.despine()
         self.page.savefig()
         plt.close()
 
     def __draw_stripplot(self, x, y, hue, hue_name, data, title, xlabel, ylabel):
+        data = data.dropna(subset=[y])
         if data.empty:
             return
         plt.figure()
         data = data.rename(columns={hue: hue_name})
         xmin = data[x].min()
         xmax = data[x].max()
-        data = data.dropna(subset=[y])
         g = sns.stripplot(data=data, x=x, y=y, hue=hue_name)
         g.set(title=title, xlabel=xlabel, ylabel=ylabel,
               xlim=(xmin - 0.03 * (xmax - xmin), xmax + 0.03 * (xmax - xmin)))
