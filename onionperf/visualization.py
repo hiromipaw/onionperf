@@ -49,9 +49,6 @@ class TGenVisualization(Visualization):
             self.__plot_downloads_count()
             self.__plot_errors_count()
             self.__plot_errors_time()
-            self.__plot_guards_time()
-            self.__plot_uses_guards_time()
-            self.__plot_guard_index_time()
             self.page.close()
 
     def __extract_data_frame(self):
@@ -144,18 +141,16 @@ class TGenVisualization(Visualization):
                             if "unix_ts_start" in transfer_data:
                                 stream["start"] = datetime.datetime.utcfromtimestamp(transfer_data["unix_ts_start"])
                         tor_circuit = None
-                        if source_port and unix_ts_end:
+                        circuit_id = None
+                        if source_port and source_port in tor_streams_by_source_port and unix_ts_end:
                             for tor_stream in tor_streams_by_source_port[source_port]:
                                 if abs(unix_ts_end - tor_stream["unix_ts_end"]) < 150.0:
                                     circuit_id = tor_stream["circuit_id"]
                         if circuit_id and str(circuit_id) in tor_circuits:
                             tor_circuit = tor_circuits[circuit_id]
-                            if client in tor_guards_by_client:
-                                guards = []
-                                for guard in tor_guards_by_client[client]:
-                                    if "up_ts" in guard and tor_circuit["unix_ts_start"] >= guard["up_ts"] and \
-                                            ("dropped_ts" not in guard or tor_circuit["unix_ts_start"] < guard["dropped_ts"]):
-                                        guards.append(guard["fingerprint"])
+                            if client in tor_guards_by_client and "current_guards" in tor_circuit:
+                                stream["guard_country_codes"] = [d["country"] if "country" in d else "N/A" for d in tor_circuit["current_guards"]]
+                                guards = [d["fingerprint"] for d in tor_circuit["current_guards"]]
                                 stream["guards"] = int(len(guards))
                             path = tor_circuit["path"]
                             if path:
@@ -174,11 +169,13 @@ class TGenVisualization(Visualization):
                                 error_code_parts = ["TOR"]
                             else:
                                 error_code_parts = ["TGEN", error_code]
-                            if tor_stream:
-                                if "failure_reason_local" in tor_stream:
-                                    error_code_parts.append(tor_stream["failure_reason_local"])
-                                    if "failure_reason_remote" in tor_stream:
-                                        error_code_parts.append(tor_stream["failure_reason_remote"])
+                            if source_port and source_port in tor_streams_by_source_port and unix_ts_end:
+                                for tor_stream in tor_streams_by_source_port[source_port]:
+                                    if abs(unix_ts_end - tor_stream["unix_ts_end"]) < 150.0:
+                                        if "failure_reason_local" in tor_stream:
+                                            error_code_parts.append(tor_stream["failure_reason_local"])
+                                            if "failure_reason_remote" in tor_stream:
+                                                error_code_parts.append(tor_stream["failure_reason_remote"])
                             stream["error_code"] = "/".join(error_code_parts)
 
                         if "filters" in analysis.json_db.keys() and analysis.json_db["filters"]["tor/circuits"]:
@@ -266,27 +263,6 @@ class TGenVisualization(Visualization):
                                      xlabel="Download start time", ylabel="Error code",
                                      title="Downloads failed over time from {0} service".format(server))
 
-    def __plot_guards_time(self):
-        if self.data["guards"].count() > 0:
-            self.__draw_timeplot(x="start", y="guards", hue="label", hue_name="Data set",
-                                 data=self.data,
-                                 xlabel="Download start time", ylabel="Guards",
-                                 title="Number of guards over time")
-
-    def __plot_guard_index_time(self):
-        if self.data["guard_index"].count() > 0:
-            self.__draw_timeplot(x="start", y="guard_index", hue="label", hue_name="Data set",
-                                 data=self.data,
-                                 xlabel="Download start time", ylabel="Guard index",
-                                 title="Guard index over time")
-
-    def __plot_uses_guards_time(self):
-        if self.data["uses_guard"].count() > 0:
-            self.__draw_timeplot(x="start", y="uses_guard", hue="label", hue_name="Data set",
-                                 data=self.data,
-                                 xlabel="Download start time", ylabel="Guard usage",
-                                 title="Guard usage over time")
-
     def __draw_ecdf(self, x, hue, hue_name, data, title, xlabel, ylabel):
         data = data.dropna(subset=[x])
         if data.empty:
@@ -320,8 +296,8 @@ class TGenVisualization(Visualization):
         data = data.rename(columns={hue: hue_name})
         xmin = data[x].min()
         xmax = data[x].max()
-        ymin = data[y].min()
-        ymax = data[y].max()
+        ymin = float(data[y].min())
+        ymax = float(data[y].max())
         g = sns.scatterplot(data=data, x=x, y=y, hue=hue_name, alpha=0.5)
         g.set(title=title, xlabel=xlabel, ylabel=ylabel,
               xlim=(xmin - 0.03 * (xmax - xmin), xmax + 0.03 * (xmax - xmin)),
@@ -360,7 +336,9 @@ class TGenVisualization(Visualization):
         plt.figure()
         if hue is not None:
             data = data.rename(columns={hue: hue_name})
-        g = sns.countplot(data=data, x=x, hue=hue_name)
+        if data.empty:
+            return
+        g = sns.countplot(data=data.dropna(subset=[x]), x=x, hue=hue_name)
         g.set(xlabel=xlabel, ylabel=ylabel, title=title)
         sns.despine()
         self.page.savefig()
@@ -372,6 +350,8 @@ class TGenVisualization(Visualization):
             return
         plt.figure()
         data = data.rename(columns={hue: hue_name})
+        if data.empty:
+            return
         xmin = data[x].min()
         xmax = data[x].max()
         g = sns.stripplot(data=data, x=x, y=y, hue=hue_name)

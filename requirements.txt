@@ -9,3 +9,4 @@ scipy
 seaborn
 stem >= 1.7.0
 tgentools
+requests
