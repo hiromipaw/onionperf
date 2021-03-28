@@ -148,6 +148,7 @@ class TGenVisualization(Visualization):
                                     circuit_id = tor_stream["circuit_id"]
                         if circuit_id and str(circuit_id) in tor_circuits:
                             tor_circuit = tor_circuits[circuit_id]
+                            guards = []
                             if client in tor_guards_by_client and "current_guards" in tor_circuit:
                                 stream["guard_country_codes"] = [d["country"] if "country" in d else "N/A" for d in tor_circuit["current_guards"]]
                                 guards = [d["fingerprint"] for d in tor_circuit["current_guards"]]
@@ -158,7 +159,7 @@ class TGenVisualization(Visualization):
                                 fingerprint_match = fingerprint_pattern.match(long_name)
                                 if fingerprint_match:
                                     fingerprint = fingerprint_match.group(1).upper()
-                                    stream["guard"] = fingerprint # TODO temp remove later
+                                    stream["guard"] = fingerprint
                                     stream["uses_guard"] = fingerprint in guards
                                     try:
                                         stream["guard_index"] = guards.index(fingerprint)
