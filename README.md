@@ -301,7 +301,7 @@ onionperf visualize --help
 The PDF output file contains visualizations of the following metrics:
 
 - Time to download first (last) byte, which is defined as elapsed time between starting a measurement and receiving the first (last) byte of the HTTP response.
-- Throughput, which is computed from the elapsed time between receiving 0.5 and 1 MiB of the response.
+- Throughput, which is computed from the elapsed time between receiving 0.5 and 1 MiB of the response for 1MiB transfers, and from the elapsed time between receiving 4 and 5 MiB of the response for 5MiB transfers.
 - Number of downloads.
 - Number and type of failures.
 

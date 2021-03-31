@@ -1,5 +1,7 @@
 # Changes in version 0.9 - 2020-1?-??
 
+ - Compute the throughput for 5 MiB transfers based on the elapsed time
+   between receiving 4 and 5 MiB of the response. Implemets #40020.
  - Avoid tracebacks when visualizing analysis files containing only
    unsuccessful measurements. Fixes #40012.
  - Add support for processing GUARD events and including guard-related
