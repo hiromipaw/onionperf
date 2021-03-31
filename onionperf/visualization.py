@@ -7,7 +7,7 @@
 
 import matplotlib; matplotlib.use('Agg')  # for systems without X11
 from matplotlib.backends.backend_pdf import PdfPages
-import time
+import time, re
 from abc import abstractmethod, ABCMeta
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -54,10 +54,26 @@ class TGenVisualization(Visualization):
     def __extract_data_frame(self):
         streams = []
         for (analyses, label) in self.datasets:
+            tor_guards_by_client = {}
+            for analysis in analyses:
+                for client in analysis.get_nodes():
+                    known_guards = tor_guards_by_client.setdefault(client, [])
+                    for guard in analysis.get_tor_guards(client):
+                        if "new_ts" not in guard:
+                            _guard = None
+                            for g in reversed(known_guards):
+                                if g["fingerprint"] == guard["fingerprint"]:
+                                    _guard = g
+                                    break
+                            if _guard and "dropped_ts" not in _guard:
+                                _guard["dropped_ts"] = guard["dropped_ts"]
+                                continue
+                        known_guards.append(guard)
             for analysis in analyses:
                 for client in analysis.get_nodes():
                     tor_streams_by_source_port = {}
                     tor_streams = analysis.get_tor_streams(client)
+                    fingerprint_pattern = re.compile("\$?([0-9a-fA-F]{40})")
                     for tor_stream in tor_streams.values():
                         if "source" in tor_stream and ":" in tor_stream["source"]:
                             source_port = tor_stream["source"].split(":")[1]
@@ -124,27 +140,43 @@ class TGenVisualization(Visualization):
                                 unix_ts_end = transfer_data["unix_ts_end"]
                             if "unix_ts_start" in transfer_data:
                                 stream["start"] = datetime.datetime.utcfromtimestamp(transfer_data["unix_ts_start"])
-                        tor_stream = None
                         tor_circuit = None
+                        circuit_id = None
                         if source_port and source_port in tor_streams_by_source_port and unix_ts_end:
-                            for s in tor_streams_by_source_port[source_port]:
-                                if abs(unix_ts_end - s["unix_ts_end"]) < 150.0:
-                                    tor_stream = s
-                                    break
-                        if tor_stream and "circuit_id" in tor_stream:
-                            circuit_id = tor_stream["circuit_id"]
-                            if str(circuit_id) in tor_circuits:
-                                tor_circuit = tor_circuits[circuit_id]
+                            for tor_stream in tor_streams_by_source_port[source_port]:
+                                if abs(unix_ts_end - tor_stream["unix_ts_end"]) < 150.0:
+                                    circuit_id = tor_stream["circuit_id"]
+                        if circuit_id and str(circuit_id) in tor_circuits:
+                            tor_circuit = tor_circuits[circuit_id]
+                            guards = []
+                            if client in tor_guards_by_client and "current_guards" in tor_circuit:
+                                stream["guard_country_codes"] = [d["country"] if "country" in d else "N/A" for d in tor_circuit["current_guards"]]
+                                guards = [d["fingerprint"] for d in tor_circuit["current_guards"]]
+                                stream["guards"] = int(len(guards))
+                            path = tor_circuit["path"]
+                            if path:
+                                long_name, _ = path[0]
+                                fingerprint_match = fingerprint_pattern.match(long_name)
+                                if fingerprint_match:
+                                    fingerprint = fingerprint_match.group(1).upper()
+                                    stream["guard"] = fingerprint
+                                    stream["uses_guard"] = fingerprint in guards
+                                    try:
+                                        stream["guard_index"] = guards.index(fingerprint)
+                                    except:
+                                        stream["guard_index"] = -1
                         if error_code:
                             if error_code == "PROXY":
                                 error_code_parts = ["TOR"]
                             else:
                                 error_code_parts = ["TGEN", error_code]
-                            if tor_stream:
-                                if "failure_reason_local" in tor_stream:
-                                    error_code_parts.append(tor_stream["failure_reason_local"])
-                                    if "failure_reason_remote" in tor_stream:
-                                        error_code_parts.append(tor_stream["failure_reason_remote"])
+                            if source_port and source_port in tor_streams_by_source_port and unix_ts_end:
+                                for tor_stream in tor_streams_by_source_port[source_port]:
+                                    if abs(unix_ts_end - tor_stream["unix_ts_end"]) < 150.0:
+                                        if "failure_reason_local" in tor_stream:
+                                            error_code_parts.append(tor_stream["failure_reason_local"])
+                                            if "failure_reason_remote" in tor_stream:
+                                                error_code_parts.append(tor_stream["failure_reason_remote"])
                             stream["error_code"] = "/".join(error_code_parts)
 
                         if "filters" in analysis.json_db.keys() and analysis.json_db["filters"]["tor/circuits"]:
@@ -265,11 +297,12 @@ class TGenVisualization(Visualization):
         data = data.rename(columns={hue: hue_name})
         xmin = data[x].min()
         xmax = data[x].max()
-        ymax = data[y].max()
+        ymin = float(data[y].min())
+        ymax = float(data[y].max())
         g = sns.scatterplot(data=data, x=x, y=y, hue=hue_name, alpha=0.5)
         g.set(title=title, xlabel=xlabel, ylabel=ylabel,
               xlim=(xmin - 0.03 * (xmax - xmin), xmax + 0.03 * (xmax - xmin)),
-              ylim=(-0.05 * ymax, ymax * 1.05))
+              ylim=(ymin - 0.05 * (ymax - ymin), ymax + 0.05 * (ymax - ymin)))
         plt.xticks(rotation=10)
         sns.despine()
         self.page.savefig()
@@ -304,7 +337,9 @@ class TGenVisualization(Visualization):
         plt.figure()
         if hue is not None:
             data = data.rename(columns={hue: hue_name})
-        g = sns.countplot(data=data, x=x, hue=hue_name)
+        if data.empty:
+            return
+        g = sns.countplot(data=data.dropna(subset=[x]), x=x, hue=hue_name)
         g.set(xlabel=xlabel, ylabel=ylabel, title=title)
         sns.despine()
         self.page.savefig()
@@ -316,6 +351,8 @@ class TGenVisualization(Visualization):
             return
         plt.figure()
         data = data.rename(columns={hue: hue_name})
+        if data.empty:
+            return
         xmin = data[x].min()
         xmax = data[x].max()
         g = sns.stripplot(data=data, x=x, y=y, hue=hue_name)

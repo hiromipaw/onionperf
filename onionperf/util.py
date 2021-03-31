@@ -5,12 +5,16 @@
   See LICENSE for licensing information
 '''
 
-import sys, os, socket, logging, random, re, shutil, datetime, urllib.request, urllib.parse, urllib.error, gzip, lzma
+import sys, os, socket, logging, random, re, shutil, datetime, urllib.request, urllib.parse, urllib.error, gzip, lzma, requests
 from threading import Lock
 from io import StringIO
 from abc import ABCMeta, abstractmethod
 
 LINEFORMATS = "k-,r-,b-,g-,c-,m-,y-,k--,r--,b--,g--,c--,m--,y--,k:,r:,b:,g:,c:,m:,y:,k-.,r-.,b-.,g-.,c-.,m-.,y-."
+
+def get_country_by_fingerprint(fingerprint):
+    r = requests.get(f"https://onionoo.torproject.org/details?search={fingerprint}")
+    return r.json()["relays"][0]["country"]
 
 def make_dir_path(path):
     p = os.path.abspath(os.path.expanduser(path))
