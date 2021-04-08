@@ -8,6 +8,7 @@
 import binascii, hashlib
 import os, traceback, subprocess, threading, queue, logging, time, datetime, re, shlex
 from lxml import etree
+from collections import defaultdict
 
 # stem imports
 from stem.util import str_tools
@@ -138,7 +139,7 @@ def watchdog_thread_task(cmd, cwd, writable, done_ev, send_stdin, ready_search_s
     # too many failures, or master asked us to stop, close the writable before exiting thread
     writable.close()
 
-def logrotate_thread_task(writables, tgen_writable, torctl_writable, docroot, nickname, done_ev):
+def logrotate_thread_task(writables, tgen_writable, torctl_writable, docroot, nickname, done_ev, analysis_args):
     next_midnight = None
 
     while not done_ev.wait(1):
@@ -173,7 +174,7 @@ def logrotate_thread_task(writables, tgen_writable, torctl_writable, docroot, ni
                         anal.add_torctl_file(torctl_writable.rotate_file(filename_datetime=next_midnight))
 
                     # run the analysis, i.e. parse the files
-                    anal.analyze()
+                    anal.analyze(**analysis_args)
 
                     # save the results in onionperf json format in the www docroot
                     anal.save(output_prefix=docroot, do_compress=True, date_prefix=next_midnight.date())
@@ -335,7 +336,11 @@ class Measurement(object):
 
     def __start_log_processors(self, general_writables, tgen_writable, torctl_writable):
         # rotate the log files, and then parse out the measurement data
-        logrotate_args = (general_writables, tgen_writable, torctl_writable, self.www_docroot, self.nickname, self.done_event)
+        analysis_args = defaultdict()
+        analysis_args["exclude_cbt"] = False
+        if self.drop_guards_interval_hours != 0:
+            analysis_args["exclude_cbt"] = True
+        logrotate_args = (general_writables, tgen_writable, torctl_writable, self.www_docroot, self.nickname, self.done_event, analysis_args)
         logrotate = threading.Thread(target=logrotate_thread_task, name="logrotate", args=logrotate_args)
         logrotate.start()
         self.threads.append(logrotate)

@@ -30,13 +30,17 @@ class OPAnalysis(Analysis):
     def add_torctl_file(self, filepath):
         self.torctl_filepaths.append(filepath)
 
-    def analyze(self, date_filter=None):
+    def analyze(self, date_filter=None, exclude_cbt=False):
         if self.did_analysis:
             return
-
+        self.exclude_cbt = exclude_cbt
+        if exclude_cbt:
+            filters = self.json_db.setdefault("filters", {})
+            tor_circuits_filters = filters.setdefault("tor/circuits", [])
+            tor_circuits_filters.append({"name": "exclude_cbt"})
         self.date_filter = date_filter
         super().analyze(do_complete=True, date_filter=self.date_filter)
-        torctl_parser = TorCtlParser(date_filter=self.date_filter)
+        torctl_parser = TorCtlParser(date_filter=self.date_filter, exclude_cbt=self.exclude_cbt)
 
         for (filepaths, parser, json_db_key) in [(self.torctl_filepaths, torctl_parser, 'tor')]:
             if len(filepaths) > 0:
@@ -229,6 +233,7 @@ class TorCircuit(object):
         self.buildtime_seconds = None
         self.build_timeout = None
         self.build_quantile = None
+        self.cbt_set = False
         self.current_guards = None
         self.elapsed_seconds = []
         self.path = []
@@ -266,6 +271,7 @@ class TorCircuit(object):
             self.unix_ts_start = unix_ts
         self.build_timeout = build_timeout
         self.build_quantile = build_quantile
+        self.cbt_set = cbt_set
 
     def set_end_time(self, unix_ts):
         self.unix_ts_end = unix_ts
@@ -318,7 +324,7 @@ class TorGuard(object):
 
 class TorCtlParser(Parser):
 
-    def __init__(self, date_filter=None):
+    def __init__(self, date_filter=None, exclude_cbt=False):
         ''' date_filter should be given in UTC '''
         self.circuits_state = {}
         self.circuits = {}
@@ -329,7 +335,9 @@ class TorCtlParser(Parser):
         self.boot_succeeded = False
         self.build_timeout_last = None
         self.build_quantile_last = None
+        self.cbt_set = False
         self.date_filter = date_filter
+        self.exclude_cbt = exclude_cbt
 
     def __handle_circuit(self, event, arrival_dt):
         # first make sure we have a circuit object
@@ -342,7 +350,7 @@ class TorCtlParser(Parser):
         key = None
         if isinstance(event, CircuitEvent):
             if event.status == CircStatus.LAUNCHED:
-                circ.set_launched(arrival_dt, self.build_timeout_last, self.build_quantile_last)
+                circ.set_launched(arrival_dt, self.build_timeout_last, self.build_quantile_last, self.cbt_set)
 
             key = "{0}:{1}".format(event.purpose, event.status)
             circ.add_event(key, arrival_dt)
@@ -373,7 +381,11 @@ class TorCtlParser(Parser):
 
                 data = circ.get_data()
                 if data is not None:
-                    self.circuits[cid] = data
+                    print(data)
+                    if self.exclude_cbt and data["cbt_set"] == False:
+                        pass
+                    else:
+                        self.circuits[cid] = data
                 self.circuits_state.pop(cid)
 
         elif isinstance(event, CircMinorEvent):
@@ -416,6 +428,10 @@ class TorCtlParser(Parser):
             self.streams_state.pop(sid)
 
     def __handle_buildtimeout(self, event, arrival_dt):
+        if event.set_type == 'RESET':
+           self.cbt_set = False
+        else:
+           self.cbt_set = True
         self.build_timeout_last = event.timeout
         self.build_quantile_last = event.quantile
 
