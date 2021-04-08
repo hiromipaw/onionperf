@@ -248,25 +248,7 @@ class TorCircuit(object):
     def add_hop(self, hop, arrived_at):
         self.path.append(["${0}~{1}".format(hop[0], hop[1]), arrived_at])
 
-    def set_launched(self, unix_ts, build_timeout, build_quantile):
-        if self.unix_ts_start is None:
-            self.unix_ts_start = unix_ts
-        self.build_timeout = build_timeout
-        self.build_quantile = build_quantile
-
-    def set_end_time(self, unix_ts):
-        self.unix_ts_end = unix_ts
-
-    def set_local_failure(self, reason):
-        self.failure_reason_local = reason
-
-    def set_remote_failure(self, reason):
-        self.failure_reason_remote = reason
-
-    def add_hop(self, hop, arrived_at):
-        self.path.append(["${0}~{1}".format(hop[0], hop[1]), arrived_at])
-
-    def set_launched(self, unix_ts, build_timeout, build_quantile):
+    def set_launched(self, unix_ts, build_timeout, build_quantile, cbt_set):
         if self.unix_ts_start is None:
             self.unix_ts_start = unix_ts
         self.build_timeout = build_timeout
