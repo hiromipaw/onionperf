@@ -5,7 +5,8 @@
   See LICENSE for licensing information
 '''
 
-import re
+import sys, re
+import logging
 from onionperf.analysis import OPAnalysis
 
 class Filtering(object):
@@ -13,6 +14,7 @@ class Filtering(object):
     def __init__(self):
         self.fingerprints_to_include = None
         self.fingerprints_to_exclude = None
+        self.exclude_cbt = False
         self.fingerprint_pattern = re.compile("\$?([0-9a-fA-F]{40})")
 
     def include_fingerprints(self, path):
@@ -36,7 +38,8 @@ class Filtering(object):
                     self.fingerprints_to_exclude.append(fingerprint)
 
     def filter_tor_circuits(self, analysis):
-        if self.fingerprints_to_include is None and self.fingerprints_to_exclude is None:
+
+        if self.fingerprints_to_include is None and self.fingerprints_to_exclude is None and not self.exclude_cbt:
             return
         filters = analysis.json_db.setdefault("filters", {})
         tor_circuits_filters = filters.setdefault("tor/circuits", [])
@@ -44,6 +47,22 @@ class Filtering(object):
            tor_circuits_filters.append({"name": "include_fingerprints", "filepath": self.fingerprints_to_include_path })
         if self.fingerprints_to_exclude:
            tor_circuits_filters.append({"name": "exclude_fingerprints", "filepath": self.fingerprints_to_exclude_path })
+        if self.exclude_cbt:
+           if str(analysis.json_db["version"]) < '5.0':
+               logging.error("Analysis is version {}, but version 5.0 or higher is required.".format(analysis.json_db["version"]))
+               sys.exit(1)
+           tor_circuits_filters.append({"name": "exclude_cbt"})
+           for source in analysis.get_nodes():
+               tor_circuits = analysis.get_tor_circuits(source)
+               filtered_circuit_ids = []
+               for circuit_id, tor_circuit in tor_circuits.items():
+                   keep = False
+                   if "cbt_set" in tor_circuit and tor_circuit["cbt_set"] == True:
+                       keep = True
+                   if not keep:
+                       tor_circuits[circuit_id]["filtered_out"] = True
+                       tor_circuits[circuit_id] = dict(sorted(tor_circuit.items()))
+
         for source in analysis.get_nodes():
             tor_circuits = analysis.get_tor_circuits(source)
             filtered_circuit_ids = []
@@ -69,7 +88,7 @@ class Filtering(object):
     def apply_filters(self, input_path, output_dir, output_file):
         analysis = OPAnalysis.load(filename=input_path)
         self.filter_tor_circuits(analysis)
-        analysis.json_db["version"] = '4.0'
+        analysis.json_db["version"] = '5.0'
         analysis.json_db = dict(sorted(analysis.json_db.items()))
         analysis.save(filename=output_file, output_prefix=output_dir, sort_keys=False)
 
