@@ -363,11 +363,9 @@ class TorCtlParser(Parser):
 
                 data = circ.get_data()
                 if data is not None:
-                    print(data)
                     if self.exclude_cbt and data["cbt_set"] == False:
-                        pass
-                    else:
-                        self.circuits[cid] = data
+                       data['filtered_out'] = True
+                    self.circuits[cid] = data
                 self.circuits_state.pop(cid)
 
         elif isinstance(event, CircMinorEvent):
