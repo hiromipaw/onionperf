@@ -389,6 +389,10 @@
                       "type": "integer",
                       "title": "Circuit build time in milliseconds, obtained from the most recent BUILDTIMEOUT_SET event preceding the CIRC event with status LAUNCHED"
                     },
+                    "cbt_set": {
+                      "type": "boolean",
+                      "title": "Whether or not the Circuit Build Timeout was computed at the time of measurement, obtained rom the most recent BUILDTIMEOUT_SET event preceding the CIRC event with status LAUNCHED"
+                   },
                     "current_guards": {
                       "type": "array",
                       "title": "Current active guards, obtained from processing GUARD NEW, UP, DOWN and DROPPED events",
