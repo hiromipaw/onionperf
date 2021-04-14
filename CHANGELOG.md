@@ -1,15 +1,22 @@
-# Changes in version 0.9 - 2020-1?-??
+# Changes in version 0.9 - 2020-04-15
 
  - Compute the throughput for 5 MiB transfers based on the elapsed time
-   between receiving 4 and 5 MiB of the response. Implemets #40020.
+   between receiving 4 and 5 MiB of the response. Implements #40020.
  - Avoid tracebacks when visualizing analysis files containing only
    unsuccessful measurements. Fixes #40012.
  - Add support for processing GUARD events and including guard-related
    information in the analysis. Bump the analysis version to 5.0 to
    include optional guard metadata defined in a 'guards' field and
    optional metadata on current guards defined in a 'current\_guards'
-   field. Add several new fields to the CSV output: guard\_country\_codes,
+   field. Implements #33421.
+ - Add several new fields to the CSV output: guard\_country\_codes,
    guards, guard, uses\_guard, guard\_index. Implements #33421.
+ - Add a new field to Tor circuits at analysis time, cbt\_set. This is set to
+   True after a BUILDTIMEOUT COMPUTED event and reset to False after a
+   RESET event.
+ - Add a new filter parameter, `--exclude-cbt` to support filtering measurements
+   where the CBT was not set. This filter is applied by default at analysis
+   time for measurements using `--drop-guards`. Implements #40023.
 
 # Changes in version 0.8 - 2020-09-16
 
