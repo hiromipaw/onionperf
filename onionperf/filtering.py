@@ -61,7 +61,9 @@ class Filtering(object):
                        keep = True
                    if not keep:
                        tor_circuits[circuit_id]["filtered_out"] = True
-                       tor_circuits[circuit_id] = dict(sorted(tor_circuit.items()))
+                   else:
+                       tor_circuits[circuit_id]["filtered_out"] = False
+                   tor_circuits[circuit_id] = dict(sorted(tor_circuit.items()))
 
         for source in analysis.get_nodes():
             tor_circuits = analysis.get_tor_circuits(source)

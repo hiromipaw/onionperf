@@ -365,6 +365,8 @@ class TorCtlParser(Parser):
                 if data is not None:
                     if self.exclude_cbt and data["cbt_set"] == False:
                        data['filtered_out'] = True
+                    else:
+                       data['filtered_out'] = False
                     self.circuits[cid] = data
                 self.circuits_state.pop(cid)
 
