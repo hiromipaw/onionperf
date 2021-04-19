@@ -24,7 +24,7 @@ class OPAnalysis(Analysis):
 
     def __init__(self, nickname=None, ip_address=None):
         super().__init__(nickname, ip_address)
-        self.json_db = {'type': 'onionperf', 'version': '5.0', 'data': {}}
+        self.json_db = {'type': 'onionperf', 'version': '3.1', 'data': {}}
         self.torctl_filepaths = []
 
     def add_torctl_file(self, filepath):
