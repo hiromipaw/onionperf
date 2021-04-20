@@ -1,4 +1,4 @@
-# Changes in version 0.9 - 2020-04-15
+# Changes in version 0.9 - 2020-04-20
 
  - Compute the throughput for 5 MiB transfers based on the elapsed time
    between receiving 4 and 5 MiB of the response. Implements #40020.
