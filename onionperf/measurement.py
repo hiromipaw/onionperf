@@ -189,7 +189,7 @@ def logrotate_thread_task(writables, tgen_writable, torctl_writable, docroot, ni
 
 class Measurement(object):
 
-    def __init__(self, tor_bin_path, tgen_bin_path, datadir_path, privatedir_path, nickname, additional_client_conf=None, torclient_conf_file=None, torserver_conf_file=None, single_onion=False, drop_guards_interval_hours=0):
+    def __init__(self, tor_bin_path, tgen_bin_path, datadir_path, privatedir_path, nickname, additional_client_conf=None, torclient_conf_file=None, torserver_conf_file=None, single_onion=False, drop_guards_interval_hours=0, newnym_interval_seconds=300):
         self.tor_bin_path = tor_bin_path
         self.tgen_bin_path = tgen_bin_path
         self.datadir_path = datadir_path
@@ -205,6 +205,7 @@ class Measurement(object):
         self.torserver_conf_file = torserver_conf_file
         self.single_onion = single_onion
         self.drop_guards_interval_hours = drop_guards_interval_hours
+        self.newnym_interval_seconds = newnym_interval_seconds
 
     def run(self, do_onion=True, do_inet=True, tgen_model=None, tgen_client_conf=None, tgen_server_conf=None):
         '''
@@ -488,8 +489,7 @@ WarnUnsafeSocks 0\nSafeLogging 0\nMaxCircuitDirtiness 60 seconds\nDataDirectory 
         time.sleep(3)
 
         torctl_events = [e for e in monitor.get_supported_torctl_events() if e not in ['DEBUG', 'INFO', 'NOTICE', 'WARN', 'ERR']]
-        newnym_interval_seconds = 300
-        torctl_args = (control_port, torctl_writable, torctl_events, newnym_interval_seconds, self.drop_guards_interval_hours, self.done_event)
+        torctl_args = (control_port, torctl_writable, torctl_events, self.newnym_interval_seconds, self.drop_guards_interval_hours, self.done_event)
         torctl_helper = threading.Thread(target=monitor.tor_monitor_run, name="torctl_{0}_helper".format(name), args=torctl_args)
         torctl_helper.start()
         self.threads.append(torctl_helper)
