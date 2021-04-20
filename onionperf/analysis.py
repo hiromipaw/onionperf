@@ -354,7 +354,7 @@ class TorCtlParser(Parser):
             if event.status == CircStatus.CLOSED or event.status == CircStatus.FAILED:
                 current_guards = []
                 for g in self.guards:
-                    if g.up_ts and circ.unix_ts_start >= g.up_ts and (not g.dropped_ts or circ.unix_ts_start < g.dropped_ts) and (not g.down_ts or circ.unix_ts_start < g.down_ts):
+                    if g.up_ts and circ.unix_ts_start >= g.up_ts and (not g.dropped_ts or circ.unix_ts_start < g.dropped_ts):
                         current_guards.append(g)
                 if current_guards:
                     circ.add_current_guards(current_guards)
