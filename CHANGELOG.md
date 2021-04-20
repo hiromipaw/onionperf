@@ -5,7 +5,7 @@
  - Avoid tracebacks when visualizing analysis files containing only
    unsuccessful measurements. Fixes #40012.
  - Add support for processing GUARD events and including guard-related
-   information in the analysis. Bump the analysis version to 5.0 to
+   information in the analysis. Change the analysis version to 3.1 to
    include optional guard metadata defined in a 'guards' field and
    optional metadata on current guards defined in a 'current\_guards'
    field. Implements #33421.

@@ -48,8 +48,8 @@ class Filtering(object):
         if self.fingerprints_to_exclude:
            tor_circuits_filters.append({"name": "exclude_fingerprints", "filepath": self.fingerprints_to_exclude_path })
         if self.exclude_cbt:
-           if str(analysis.json_db["version"]) < '5.0':
-               logging.error("Analysis is version {}, but version 5.0 or higher is required.".format(analysis.json_db["version"]))
+           if str(analysis.json_db["version"]) < '3.1':
+               logging.error("Analysis is version {}, but version 3.1 or higher is required.".format(analysis.json_db["version"]))
                sys.exit(1)
            tor_circuits_filters.append({"name": "exclude_cbt"})
            for source in analysis.get_nodes():
@@ -61,7 +61,9 @@ class Filtering(object):
                        keep = True
                    if not keep:
                        tor_circuits[circuit_id]["filtered_out"] = True
-                       tor_circuits[circuit_id] = dict(sorted(tor_circuit.items()))
+                   else:
+                       tor_circuits[circuit_id]["filtered_out"] = False
+                   tor_circuits[circuit_id] = dict(sorted(tor_circuit.items()))
 
         for source in analysis.get_nodes():
             tor_circuits = analysis.get_tor_circuits(source)
@@ -88,7 +90,7 @@ class Filtering(object):
     def apply_filters(self, input_path, output_dir, output_file):
         analysis = OPAnalysis.load(filename=input_path)
         self.filter_tor_circuits(analysis)
-        analysis.json_db["version"] = '5.0'
+        analysis.json_db["version"] = '3.1'
         analysis.json_db = dict(sorted(analysis.json_db.items()))
         analysis.save(filename=output_file, output_prefix=output_dir, sort_keys=False)
 

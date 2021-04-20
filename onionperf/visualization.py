@@ -70,6 +70,9 @@ class TGenVisualization(Visualization):
                                 continue
                         known_guards.append(guard)
             for analysis in analyses:
+                tor_filters = False
+                if "filters" in analysis.json_db and "tor/circuits" in analysis.json_db["filters"]:
+                    tor_filters = True
                 for client in analysis.get_nodes():
                     tor_streams_by_source_port = {}
                     tor_streams = analysis.get_tor_streams(client)
@@ -183,10 +186,14 @@ class TGenVisualization(Visualization):
                                                 error_code_parts.append(tor_stream["failure_reason_remote"])
                             stream["error_code"] = "/".join(error_code_parts)
 
-                        if "filters" in analysis.json_db.keys() and analysis.json_db["filters"]["tor/circuits"]:
-                           if tor_circuit and "filtered_out" not in tor_circuit.keys():
-                               streams.append(stream)
-                        else:
+                        keep_stream = True
+                        if tor_filters:
+                           try:
+                               if tor_circuit is None or tor_circuit["filtered_out"]:
+                                   keep_stream = False
+                           except KeyError:
+                               pass
+                        if keep_stream:
                            streams.append(stream)
         self.data = pd.DataFrame.from_records(streams, index="id")
 

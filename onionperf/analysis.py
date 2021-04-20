@@ -24,7 +24,7 @@ class OPAnalysis(Analysis):
 
     def __init__(self, nickname=None, ip_address=None):
         super().__init__(nickname, ip_address)
-        self.json_db = {'type': 'onionperf', 'version': '5.0', 'data': {}}
+        self.json_db = {'type': 'onionperf', 'version': '3.1', 'data': {}}
         self.torctl_filepaths = []
 
     def add_torctl_file(self, filepath):
@@ -354,7 +354,7 @@ class TorCtlParser(Parser):
             if event.status == CircStatus.CLOSED or event.status == CircStatus.FAILED:
                 current_guards = []
                 for g in self.guards:
-                    if g.up_ts and circ.unix_ts_start >= g.up_ts and (not g.dropped_ts or circ.unix_ts_start < g.dropped_ts) and (not g.down_ts or circ.unix_ts_start < g.down_ts):
+                    if g.up_ts and circ.unix_ts_start >= g.up_ts and (not g.dropped_ts or circ.unix_ts_start < g.dropped_ts):
                         current_guards.append(g)
                 if current_guards:
                     circ.add_current_guards(current_guards)
@@ -365,6 +365,8 @@ class TorCtlParser(Parser):
                 if data is not None:
                     if self.exclude_cbt and data["cbt_set"] == False:
                        data['filtered_out'] = True
+                    else:
+                       data['filtered_out'] = False
                     self.circuits[cid] = data
                 self.circuits_state.pop(cid)
 
