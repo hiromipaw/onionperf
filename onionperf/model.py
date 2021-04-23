@@ -107,12 +107,15 @@ class TorperfModel(GeneratableTGenModel):
                    stallout="0 seconds")
         g.add_node("pause_between",
                    time="%d seconds" % self.config.pause_between)
+        g.add_node("pause_sync")
 
         g.add_edge("start", "pause_initial")
         g.add_edge("pause_initial", "stream")
         g.add_edge("pause_initial", "pause_between")
-        g.add_edge("pause_between", "stream")
-        g.add_edge("pause_between", "pause_between")
+        g.add_edge("pause_between", "pause_sync")
+        g.add_edge("stream", "pause_sync")
+        g.add_edge("pause_sync", "stream")
+        g.add_edge("pause_sync", "pause_between")
 
         # only add an end node if we need to stop
         if not self.config.continuous_transfers:
