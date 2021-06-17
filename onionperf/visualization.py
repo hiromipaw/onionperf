@@ -157,6 +157,12 @@ class TGenVisualization(Visualization):
                                     circuit_id = tor_stream["circuit_id"]
                         if circuit_id and str(circuit_id) in tor_circuits:
                             tor_circuit = tor_circuits[circuit_id]
+                            if tor_circuit["path"]:
+                                fingerprints = []
+                                for i in tor_circuit["path"]:
+                                    long_name, _ = i
+                                    fingerprints.append(long_name)
+                                stream["fingerprints"] = fingerprints
                             if analysis.get_tor_guards(client) is not None:
                                 guards = []
                                 if client in tor_guards_by_client and "current_guards" in tor_circuit:
