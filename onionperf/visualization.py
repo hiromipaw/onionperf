@@ -17,6 +17,38 @@ import datetime
 import numpy as np
 import logging
 
+def split_data_frame_list(df, target_column):
+    """ df :: dataframe to split,
+    target_column :: the column containing the list of values to split
+    returns :: a dataframe with each list entry in the target column separated into its elements,
+    and each element moved into a new row.
+    The values in the other columns are duplicated across the newly created rows.
+    """
+    def split_list_to_rows(row, row_accumulator, target_column):
+        for s in row[target_column]:
+            new_row = row.to_dict()
+            new_row[target_column] = s
+            row_accumulator.append(new_row)
+    new_rows = []
+    df.apply(split_list_to_rows, axis=1, args=(new_rows, target_column))
+    new_df = pd.DataFrame(new_rows)
+    return new_df
+
+def count_common_rows(df_list, target_column):
+    """ df_list :: list of dataframes,
+    target_column :: the column containing common values
+    returns :: a dataframe containing all rows where the fingerprint is in all dataframes.
+    This is different from an outer join! An outer join creates several extra unwanted columns,
+    whereas we want to count each row only once per dataframe.
+    """
+    main_df = df_list[0]
+    df_list = df_list[1:]
+    for df in df_list:
+        ind = main_df[target_column].isin(df[target_column])
+        ind2 = df[target_column].isin(main_df[target_column])
+        main_df = main_df[ind].append(df[ind2])
+    return main_df
+
 class Visualization(object, metaclass=ABCMeta):
 
     def __init__(self):
@@ -32,25 +64,38 @@ class Visualization(object, metaclass=ABCMeta):
 
 class TGenVisualization(Visualization):
 
-    def plot_all(self, output_prefix):
+    def plot_all(self, output_prefix, categories, percentile, threshold):
         if len(self.datasets) > 0:
             prefix = output_prefix + '.' if output_prefix is not None else ''
             ts = time.strftime("%Y-%m-%d_%H:%M:%S")
             self.__extract_data_frame()
             self.data.to_csv("{0}onionperf.viz.{1}.csv".format(prefix, ts))
-            sns.set_context("paper")
-            self.page = PdfPages("{0}onionperf.viz.{1}.pdf".format(prefix, ts))
-            self.__plot_firstbyte_ecdf()
-            self.__plot_firstbyte_time()
-            self.__plot_lastbyte_ecdf()
-            self.__plot_lastbyte_box()
-            self.__plot_lastbyte_bar()
-            self.__plot_lastbyte_time()
-            self.__plot_throughput_ecdf()
-            self.__plot_downloads_count()
-            self.__plot_errors_count()
-            self.__plot_errors_time()
-            self.page.close()
+            if "base" in categories:
+                sns.set_context("paper")
+                self.page = PdfPages("{0}onionperf.viz.{1}.pdf".format(prefix, ts))
+                self.__plot_firstbyte_ecdf()
+                self.__plot_firstbyte_time()
+                self.__plot_lastbyte_ecdf()
+                self.__plot_lastbyte_box()
+                self.__plot_lastbyte_bar()
+                self.__plot_lastbyte_time()
+                self.__plot_throughput_ecdf()
+                self.__plot_downloads_count()
+                self.__plot_errors_count()
+                self.__plot_errors_time()
+                self.page.close()
+            if "outliers" in categories:
+                # plot outliers in a separate pdf
+                self.page = PdfPages("{0}onionperf.outliers.{1}.pdf".format(prefix, ts))
+                if threshold >= 10:
+                    sns.set(rc={"figure.figsize":(threshold, threshold/1.5)})
+                else:
+                    sns.set(rc={"figure.figsize":(15, 10)})
+
+                self.__plot_firstbyte_outliers(percentile/100.0, threshold)
+                self.__plot_lastbyte_outliers(percentile/100.0, threshold)
+                self.__plot_top_errors(threshold)
+                self.page.close()
 
     def __extract_data_frame(self):
         streams = []
@@ -115,7 +160,10 @@ class TGenVisualization(Visualization):
                             if "elapsed_seconds" in stream_data:
                                 s = stream_data["elapsed_seconds"]
                                 if stream_data["stream_info"]["recvsize"] == "5242880" and "1.0" in s["payload_progress_recv"]:
-                                     stream["mbps"] = 8.388608 / (s["payload_progress_recv"]["1.0"] - s["payload_progress_recv"]["0.8"])
+                                     try:
+                                         stream["mbps"] = 8.388608 / (s["payload_progress_recv"]["1.0"] - s["payload_progress_recv"]["0.8"])
+                                     except ZeroDivisionError:
+                                         stream["mbps"] = 8.388608
                             if "error" in stream_data["stream_info"] and stream_data["stream_info"]["error"] != "NONE":
                                 error_code = stream_data["stream_info"]["error"]
                             if "local" in stream_data["transport_info"] and len(stream_data["transport_info"]["local"].split(":")) > 2:
@@ -288,6 +336,97 @@ class TGenVisualization(Visualization):
                                      xlabel="Download start time", ylabel="Error code",
                                      title="Downloads failed over time from {0} service".format(server))
 
+    def __plot_firstbyte_outliers(self, quantile, threshold):
+        df = self.data
+        df = df.dropna(subset=["fingerprints"])
+        df = df[df.error_code.isnull()]
+        all_data = []
+        for server in self.data["server"].unique():
+            df_server = df[df.server == server]
+            df_server = df_server[df_server.time_to_first_byte > df_server.time_to_first_byte.quantile(quantile)]
+            df_server = split_data_frame_list(df_server, "fingerprints")
+            if not df_server.empty:
+                all_data.append(df_server)
+                # If the data frame contains more relays (fingerprints) than the specified threshold n,
+                # then the fingerprints are counted and the top n are displayed.
+                #
+                # If the data frame contains less relays (fingerprints) than the specified threshold,
+                # then all relays are displayed.
+                if len(df_server['fingerprints'].value_counts()) >= threshold:
+                    df_to_plot = df_server['fingerprints'].value_counts().iloc[:threshold,]
+                else:
+                    df_to_plot = df_server['fingerprints'].value_counts()
+                df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
+                self.__draw_stripplot(x="time_to_first_byte", y="fingerprints", hue="label", hue_name="Data set",
+                                      data=df_to_plot,
+                                      xlabel="Time to first byte", ylabel="Fingerprint",
+                                      title="TTFB from {0} service".format(server),
+                                      )
+                # find common outliers across onion and public datasets
+        count_df = count_common_rows(all_data, "fingerprints")
+        if not count_df.empty:
+            if len(count_df['fingerprints']) >= threshold:
+                df_to_plot = count_df['fingerprints'].value_counts().iloc[:threshold,]
+            else:
+                df_to_plot = count_df['fingerprints'].value_counts()
+            df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
+            self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
+                          data=df_to_plot, ylabel="Count", xlabel="Fingerprint",
+                          title="Relays appearing in both public and onion TTLB datasets",
+                          )
+
+    def __plot_lastbyte_outliers(self, quantile, threshold):
+        df = self.data
+        df = df.dropna(subset=["fingerprints"])
+        df = df[df.error_code.isnull()]
+        all_data = []
+        for server in self.data["server"].unique():
+            df_server = df[df.server == server]
+            df_server = df_server[df_server.time_to_last_byte > df_server.time_to_last_byte.quantile(quantile)]
+            df_server = split_data_frame_list(df_server, "fingerprints")
+            if not df_server.empty:
+                all_data.append(df_server)
+                if len(df_server['fingerprints'].value_counts()) >= threshold:
+                    df_to_plot = df_server['fingerprints'].value_counts().iloc[:threshold,]
+                else:
+                    df_to_plot = df_server['fingerprints'].value_counts()
+                df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
+                self.__draw_stripplot(x="time_to_last_byte", y="fingerprints", hue="label", hue_name="Data set",
+                                      data=df_to_plot,
+                                      xlabel="Time to last byte", ylabel="Fingerprint",
+                                      title="TTLB from {0} service".format(server),
+                                      )
+            # find common outliers across onion and public datasets
+        count_df = count_common_rows(all_data, "fingerprints")
+        if not count_df.empty:
+            if len(count_df['fingerprints']) >= threshold:
+                df_to_plot = count_df['fingerprints'].value_counts().iloc[:threshold,]
+            else:
+                df_to_plot = count_df['fingerprints'].value_counts()
+            df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
+            self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
+                          data=df_to_plot, ylabel="Count", xlabel="Fingerprint",
+                          title="Relays appearing in both public and onion TTLB datasets",
+                          )
+
+    def __plot_top_errors(self, threshold):
+        df = self.data
+        df = df.dropna(subset=["fingerprints"])
+        df = df[df.error_code.notna()]
+        for server in self.data["server"].unique():
+            df_server = df[df.server == server]
+            df_server = split_data_frame_list(df_server, "fingerprints")
+            if not df_server.empty:
+                if len(df_server['fingerprints'].value_counts()) >= threshold:
+                    df_to_plot = df_server['fingerprints'].value_counts().iloc[:threshold,]
+                else:
+                    df_to_plot = df_server['fingerprints'].value_counts()
+                df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
+                self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
+                      data=df_to_plot, ylabel="Count", xlabel="Fingerprint",
+                      title="Top relays in circuits where transfer failed due to error - {0} service".format(server),
+                      )
+
     def __draw_ecdf(self, x, hue, hue_name, data, title, xlabel, ylabel):
         data = data.dropna(subset=[x])
         if data.empty:
@@ -348,9 +487,11 @@ class TGenVisualization(Visualization):
         if data.empty:
             return
         plt.figure()
+        fig, ax = plt.subplots()
         g = sns.barplot(data=data, x=x, y=y, ci=None)
         g.set(title=title, xlabel=xlabel, ylabel=ylabel)
         sns.despine()
+        fig.tight_layout()
         self.page.savefig()
         plt.close()
 
@@ -359,11 +500,14 @@ class TGenVisualization(Visualization):
         if data.empty:
             return
         plt.figure()
+        fig, ax = plt.subplots()
         if hue is not None:
             data = data.rename(columns={hue: hue_name})
-        g = sns.countplot(data=data.dropna(subset=[x]), x=x, hue=hue_name)
+        g = sns.countplot(data=data.dropna(subset=[x]), x=x, hue=hue_name, order = data[x].value_counts().index)
         g.set(xlabel=xlabel, ylabel=ylabel, title=title)
+        plt.xticks(rotation=100)
         sns.despine()
+        fig.tight_layout()
         self.page.savefig()
         plt.close()
 
