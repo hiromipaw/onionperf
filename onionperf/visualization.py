@@ -59,7 +59,7 @@ class TGenVisualization(Visualization):
             for analysis in analyses:
                 for client in analysis.get_nodes():
                     known_guards = tor_guards_by_client.setdefault(client, [])
-                    if analysis.get_tor_guards(client):
+                    if analysis.get_tor_guards(client) is not None:
                         for guard in analysis.get_tor_guards(client):
                             if "new_ts" not in guard:
                                 _guard = None
@@ -157,23 +157,25 @@ class TGenVisualization(Visualization):
                                     circuit_id = tor_stream["circuit_id"]
                         if circuit_id and str(circuit_id) in tor_circuits:
                             tor_circuit = tor_circuits[circuit_id]
-                            guards = []
-                            if client in tor_guards_by_client and "current_guards" in tor_circuit:
-                                stream["guard_country_codes"] = [d["country"] if "country" in d else "N/A" for d in tor_circuit["current_guards"]]
-                                guards = [d["fingerprint"] for d in tor_circuit["current_guards"]]
-                                stream["guards"] = int(len(guards))
-                            path = tor_circuit["path"]
-                            if path:
-                                long_name, _ = path[0]
-                                fingerprint_match = fingerprint_pattern.match(long_name)
-                                if fingerprint_match:
-                                    fingerprint = fingerprint_match.group(1).upper()
-                                    stream["guard"] = fingerprint
-                                    stream["uses_guard"] = fingerprint in guards
-                                    try:
-                                        stream["guard_index"] = guards.index(fingerprint)
-                                    except:
-                                        stream["guard_index"] = -1
+                            if analysis.get_tor_guards(client) is not None:
+                                guards = []
+                                if client in tor_guards_by_client and "current_guards" in tor_circuit:
+                                    stream["guard_country_codes"] = [d["country"] if "country" in d else "N/A" for d in
+                                                                     tor_circuit["current_guards"]]
+                                    guards = [d["fingerprint"] for d in tor_circuit["current_guards"]]
+                                    stream["guards"] = int(len(guards))
+                                path = tor_circuit["path"]
+                                if path:
+                                    long_name, _ = path[0]
+                                    fingerprint_match = fingerprint_pattern.match(long_name)
+                                    if fingerprint_match:
+                                        fingerprint = fingerprint_match.group(1).upper()
+                                        stream["guard"] = fingerprint
+                                        stream["uses_guard"] = fingerprint in guards
+                                        try:
+                                            stream["guard_index"] = guards.index(fingerprint)
+                                        except:
+                                            stream["guard_index"] = -1
                         if error_code:
                             if error_code == "PROXY":
                                 error_code_parts = ["TOR"]
