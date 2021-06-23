@@ -283,10 +283,13 @@ For example, the analysis file produced above can be visualized with the followi
 onionperf visualize --data onionperf.analysis.json.xz "Test Measurements"
 ```
 
-As a result, two files are written to the current working directory:
+As a result, three files are written to the current working directory:
 
 - `onionperf.viz.$datetime.csv` contains visualized data in a CSV file format; and
 - `onionperf.viz.$datetime.pdf` contains visualizations in a PDF file format.
+- `onionperf.outliers.$datetime.pdf` contains measurement outliers visualizations in a PDF file format.
+
+By default, both the base pdf and the outliers pdf are produced, but this can be controlled using the `-c` switch on the command line.
 
 For analysis files containing tor circuit filters, only measurements with an existing mapping between TGen transfers/streams Tor streams/circuits which have not been marked as 'filtered\_out' are visualized.
 
@@ -298,12 +301,25 @@ onionperf visualize --help
 
 ### Interpreting the PDF output format
 
-The PDF output file contains visualizations of the following metrics:
+The base PDF output file contains visualizations of the following metrics:
 
 - Time to download first (last) byte, which is defined as elapsed time between starting a measurement and receiving the first (last) byte of the HTTP response.
 - Throughput, which is computed from the elapsed time between receiving 0.5 and 1 MiB of the response for 1MiB transfers, and from the elapsed time between receiving 4 and 5 MiB of the response for 5MiB transfers.
 - Number of downloads.
 - Number and type of failures.
+
+The measurement outliers PDF output file contains visualizations of the following metrics:
+outlier relays in the TTFB (time to first byte) dataset, for public service measurements
+
+- Outlier relays in the TTFB and TTLB datasets, for onion service measurements
+
+- Common outliers in the TTFB and TTLB dataset across both public and onion service measurements
+- Relays most seen in circuits that failed with errors for both public and onion measurements
+
+By default, we consider measurement results in the 90th percentile and only display the top 15 fingerprints that appear the most by count. This can be changed with command line arguments:
+```shell
+onionperf visualize -d <file(s)> label --percentile 75 --threshold 50
+```
 
 ### Interpreting the CSV output format
 
