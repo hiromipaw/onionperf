@@ -1,6 +1,7 @@
 # Changes in version 1.0 - 2020-0?-??
 
 - Ensure tgen transfers do not overlap. Fixes #40026
+- Process datetime objs for errors/time plot. Fixes #40016
 
 # Changes in version 0.9 - 2020-04-20
 

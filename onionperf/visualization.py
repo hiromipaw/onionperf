@@ -268,10 +268,13 @@ class TGenVisualization(Visualization):
                                       title="Number of downloads failed from {0} service".format(server))
 
     def __plot_errors_time(self):
-        for server in self.data["server"].unique():
-            if self.data[self.data["server"] == server]["error_code"].count() > 0:
+        df = self.data
+        for server in df["server"].unique():
+            if df[df["server"] == server]["error_code"].count() > 0:
+                df["start"] = pd.to_datetime(df["start"]).dt.date
+                df = df.sort_values(by=["start"])
                 self.__draw_stripplot(x="start", y="error_code", hue="label", hue_name="Data set",
-                                     data=self.data[self.data["server"] == server],
+                                     data=df[df["server"] == server],
                                      xlabel="Download start time", ylabel="Error code",
                                      title="Downloads failed over time from {0} service".format(server))
 
@@ -361,16 +364,14 @@ class TGenVisualization(Visualization):
         if data.empty:
             return
         plt.figure()
+        fig, ax = plt.subplots()
         data = data.rename(columns={hue: hue_name})
         if data.empty:
             return
-        xmin = data[x].min()
-        xmax = data[x].max()
-        g = sns.stripplot(data=data, x=x, y=y, hue=hue_name)
-        g.set(title=title, xlabel=xlabel, ylabel=ylabel,
-              xlim=(xmin - 0.03 * (xmax - xmin), xmax + 0.03 * (xmax - xmin)))
+        g = sns.stripplot(data=data, x=x, y=y, hue=hue_name, alpha=0.5)
+        g.set(title=title, xlabel=xlabel, ylabel=ylabel)
         plt.xticks(rotation=10)
-        plt.yticks(rotation=80)
         sns.despine()
+        fig.tight_layout()
         self.page.savefig()
         plt.close()
