@@ -5,25 +5,30 @@
   See LICENSE for licensing information
 '''
 
-import sys, os, socket, logging, random, re, shutil, datetime, urllib.request, urllib.parse, urllib.error, gzip, lzma, requests
+import sys, os, socket, logging, random, re, shutil, datetime, urllib.request, urllib.parse, urllib.error, gzip, lzma, \
+    requests
 from threading import Lock
 from io import StringIO
 from abc import ABCMeta, abstractmethod
 
 LINEFORMATS = "k-,r-,b-,g-,c-,m-,y-,k--,r--,b--,g--,c--,m--,y--,k:,r:,b:,g:,c:,m:,y:,k-.,r-.,b-.,g-.,c-.,m-.,y-."
 
+
 def get_country_by_fingerprint(fingerprint):
     r = requests.get(f"https://onionoo.torproject.org/details?search={fingerprint}")
     return r.json()["relays"][0]["country"]
+
 
 def make_dir_path(path):
     p = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(p):
         os.makedirs(p)
 
+
 def find_file_paths(searchpath, patterns):
     paths = []
-    if searchpath.endswith("/-"): paths.append("-")
+    if searchpath.endswith("/-"):
+        paths.append("-")
     else:
         for root, dirs, files in os.walk(searchpath):
             for name in files:
@@ -34,6 +39,7 @@ def find_file_paths(searchpath, patterns):
                     if re.search(pattern, fbase): found = True
                 if found: paths.append(fpath)
     return paths
+
 
 def find_file_paths_pairs(searchpath, patterns_a, patterns_b):
     paths = []
@@ -62,6 +68,7 @@ def find_file_paths_pairs(searchpath, patterns_a, patterns_b):
                 paths.append((paths_a, paths_b))
     return paths
 
+
 def find_path(binpath, defaultname, search_path=None):
     # find the path to tor
     if binpath is not None:
@@ -71,7 +78,8 @@ def find_path(binpath, defaultname, search_path=None):
         if w is not None:
             binpath = os.path.abspath(os.path.expanduser(w))
         else:
-            logging.error("You did not specify a path to a '{0}' binary, and one does not exist in your PATH".format(defaultname))
+            logging.error(
+                "You did not specify a path to a '{0}' binary, and one does not exist in your PATH".format(defaultname))
             return None
     # now make sure the path exists
     if os.path.exists(binpath):
@@ -82,8 +90,10 @@ def find_path(binpath, defaultname, search_path=None):
     # we found it and it exists
     return binpath
 
+
 def is_exe(fpath):
     return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
 
 def which(program, search_path=None):
     if search_path is None:
@@ -99,14 +109,17 @@ def which(program, search_path=None):
                 return exe_file
     return None
 
+
 def timestamp_to_seconds(stamp):  # unix timestamp
     return float(stamp)
+
 
 def date_to_string(date_object):
     if date_object is not None:
         return "{:04d}-{:02d}-{:02d}".format(date_object.year, date_object.month, date_object.day)
     else:
         return ""
+
 
 def do_dates_match(date1, date2):
     year_matches = True if date1.year == date2.year else False
@@ -116,6 +129,7 @@ def do_dates_match(date1, date2):
         return True
     else:
         return False
+
 
 def find_ip_address_url(data):
     """
@@ -134,6 +148,7 @@ def find_ip_address_url(data):
             ip_address = ip_list[0]
     return ip_address
 
+
 def find_ip_address_local():
     """
     Determines the local IP address of the host by opening a socket
@@ -148,7 +163,8 @@ def find_ip_address_local():
     ip_address = s.getsockname()[0]
     s.close()
     return ip_address
- 
+
+
 def get_ip_address():
     """
     Determines the public IPv4 address of the vantage point using the
@@ -177,6 +193,7 @@ def get_ip_address():
         ip_address = find_ip_address_local()
     return ip_address
 
+
 def get_random_free_port():
     """
     Picks a random high port and checks its availability by opening a
@@ -191,8 +208,9 @@ def get_random_free_port():
         port = random.randint(10000, 60000)
         rc = s.connect_ex(('127.0.0.1', port))
         s.close()
-        if rc != 0: # error connecting, port is available
+        if rc != 0:  # error connecting, port is available
             return port
+
 
 class DataSource(object):
     def __init__(self, filename, compress=False):
@@ -238,6 +256,7 @@ class Writable(object, metaclass=ABCMeta):
     @abstractmethod
     def close(self):
         pass
+
 
 class FileWritable(Writable):
 
@@ -306,6 +325,7 @@ class FileWritable(Writable):
         # return new file name so it can be processed if desired
         return new_filename
 
+
 class MemoryWritable(Writable):
 
     def __init__(self):
@@ -319,3 +339,14 @@ class MemoryWritable(Writable):
 
     def close(self):
         self.str_buffer.close()
+
+
+def match_log(regex, writable):
+    if writable is not None and os.path.exists(writable):
+        with open(writable, 'r') as fin:
+            for line in fin:
+                if regex.search(line):
+                    return True
+    else:
+        logging.warning("File not found: {}".format(writable))
+    return False
