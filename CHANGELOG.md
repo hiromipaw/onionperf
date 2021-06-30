@@ -2,6 +2,9 @@
 
 - Ensure tgen transfers do not overlap. Fixes #40026
 - Process datetime objs for errors/time plot. Fixes #40016
+- Bump Seaborn version to 0.11
+- Add tests for the data-processing parts of the visualisation code.
+  Fixes #40013. 
 
 # Changes in version 0.9 - 2020-04-20
 

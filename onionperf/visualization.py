@@ -15,6 +15,7 @@ from pandas.plotting import register_matplotlib_converters
 import seaborn as sns
 import datetime
 import numpy as np
+import logging
 
 class Visualization(object, metaclass=ABCMeta):
 
@@ -58,17 +59,18 @@ class TGenVisualization(Visualization):
             for analysis in analyses:
                 for client in analysis.get_nodes():
                     known_guards = tor_guards_by_client.setdefault(client, [])
-                    for guard in analysis.get_tor_guards(client):
-                        if "new_ts" not in guard:
-                            _guard = None
-                            for g in reversed(known_guards):
-                                if g["fingerprint"] == guard["fingerprint"]:
-                                    _guard = g
-                                    break
-                            if _guard and "dropped_ts" not in _guard:
-                                _guard["dropped_ts"] = guard["dropped_ts"]
-                                continue
-                        known_guards.append(guard)
+                    if analysis.get_tor_guards(client):
+                        for guard in analysis.get_tor_guards(client):
+                            if "new_ts" not in guard:
+                                _guard = None
+                                for g in reversed(known_guards):
+                                    if g["fingerprint"] == guard["fingerprint"]:
+                                        _guard = g
+                                        break
+                                if _guard and "dropped_ts" not in _guard:
+                                    _guard["dropped_ts"] = guard["dropped_ts"]
+                                    continue
+                            known_guards.append(guard)
             for analysis in analyses:
                 tor_filters = False
                 if "filters" in analysis.json_db and "tor/circuits" in analysis.json_db["filters"]:
@@ -351,8 +353,6 @@ class TGenVisualization(Visualization):
         plt.figure()
         if hue is not None:
             data = data.rename(columns={hue: hue_name})
-        if data.empty:
-            return
         g = sns.countplot(data=data.dropna(subset=[x]), x=x, hue=hue_name)
         g.set(xlabel=xlabel, ylabel=ylabel, title=title)
         sns.despine()
