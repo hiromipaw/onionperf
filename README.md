@@ -326,7 +326,7 @@ For example, the [Tor Metrics website](https://metrics.torproject.org/torperf.ht
 
 ## Contributing
 
-The OnionPerf code is developed at https://gitlab.torproject.org/tpo/metrics/onionperf.
+The OnionPerf code is developed at https://gitlab.torproject.org/tpo/network-health/metrics/onionperf.
 
 Contributions to OnionPerf are welcome and encouraged!
 
