@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema",
-  "$id": "https://gitlab.torproject.org/tpo/metrics/onionperf/-/raw/master/schema/onionperf-3.0.json",
+  "$id": "https://gitlab.torproject.org/tpo/network-health/metrics/onionperf/-/raw/master/schema/onionperf-3.0.json",
   "type": "object",
   "title": "OnionPerf analysis JSON file format 3.0",
   "required": [
