@@ -341,7 +341,7 @@ class TGenVisualization(Visualization):
         df = df.dropna(subset=["fingerprints"])
         df = df[df.error_code.isnull()]
         all_data = []
-        for server in self.data["server"].unique():
+        for server in sorted(self.data["server"].unique()):
             df_server = df[df.server == server]
             df_server = df_server[df_server.time_to_first_byte > df_server.time_to_first_byte.quantile(quantile)]
             df_server = split_data_frame_list(df_server, "fingerprints")
@@ -352,26 +352,29 @@ class TGenVisualization(Visualization):
                 #
                 # If the data frame contains less relays (fingerprints) than the specified threshold,
                 # then all relays are displayed.
+                df_to_plot = df_server['fingerprints'].value_counts().reset_index()
+                df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
                 if len(df_server['fingerprints'].value_counts()) >= threshold:
-                    df_to_plot = df_server['fingerprints'].value_counts().iloc[:threshold,]
-                else:
-                    df_to_plot = df_server['fingerprints'].value_counts()
+                    df_to_plot = df_to_plot.iloc[:threshold,]
+                df_to_plot = df_to_plot.set_index('index').squeeze()
+
                 df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
                 self.__draw_stripplot(x="time_to_first_byte", y="fingerprints", hue="label", hue_name="Data set",
-                                      data=df_to_plot,
+                                      data=df_to_plot.sort_values(by=['label']),
                                       xlabel="Time to first byte", ylabel="Fingerprint",
                                       title="TTFB from {0} service".format(server),
                                       )
                 # find common outliers across onion and public datasets
         count_df = count_common_rows(all_data, "fingerprints")
         if not count_df.empty:
+            df_to_plot = count_df['fingerprints'].value_counts().reset_index()
+            df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
             if len(count_df['fingerprints']) >= threshold:
-                df_to_plot = count_df['fingerprints'].value_counts().iloc[:threshold,]
-            else:
-                df_to_plot = count_df['fingerprints'].value_counts()
+                df_to_plot = df_to_plot.iloc[:threshold, ]
+            df_to_plot = df_to_plot.set_index('index').squeeze()
             df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
             self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
-                          data=df_to_plot, ylabel="Count", xlabel="Fingerprint",
+                          data=df_to_plot.sort_values(by=['label']), ylabel="Count", xlabel="Fingerprint",
                           title="Relays appearing in both public and onion TTLB datasets",
                           )
 
@@ -380,32 +383,35 @@ class TGenVisualization(Visualization):
         df = df.dropna(subset=["fingerprints"])
         df = df[df.error_code.isnull()]
         all_data = []
-        for server in self.data["server"].unique():
+        for server in sorted(self.data["server"].unique()):
             df_server = df[df.server == server]
             df_server = df_server[df_server.time_to_last_byte > df_server.time_to_last_byte.quantile(quantile)]
             df_server = split_data_frame_list(df_server, "fingerprints")
             if not df_server.empty:
                 all_data.append(df_server)
+                df_to_plot = df_server['fingerprints'].value_counts().reset_index()
+                df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
                 if len(df_server['fingerprints'].value_counts()) >= threshold:
-                    df_to_plot = df_server['fingerprints'].value_counts().iloc[:threshold,]
-                else:
-                    df_to_plot = df_server['fingerprints'].value_counts()
+                    df_to_plot = df_to_plot.iloc[:threshold,]
+                df_to_plot = df_to_plot.set_index('index').squeeze()
+
                 df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
                 self.__draw_stripplot(x="time_to_last_byte", y="fingerprints", hue="label", hue_name="Data set",
-                                      data=df_to_plot,
+                                      data=df_to_plot.sort_values(['label']),
                                       xlabel="Time to last byte", ylabel="Fingerprint",
                                       title="TTLB from {0} service".format(server),
                                       )
             # find common outliers across onion and public datasets
         count_df = count_common_rows(all_data, "fingerprints")
         if not count_df.empty:
+            df_to_plot = count_df['fingerprints'].value_counts().reset_index()
+            df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
             if len(count_df['fingerprints']) >= threshold:
-                df_to_plot = count_df['fingerprints'].value_counts().iloc[:threshold,]
-            else:
-                df_to_plot = count_df['fingerprints'].value_counts()
+                df_to_plot = df_to_plot.iloc[:threshold, ]
+            df_to_plot = df_to_plot.set_index('index').squeeze()
             df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
             self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
-                          data=df_to_plot, ylabel="Count", xlabel="Fingerprint",
+                          data=df_to_plot.sort_values(['label']), ylabel="Count", xlabel="Fingerprint",
                           title="Relays appearing in both public and onion TTLB datasets",
                           )
 
@@ -413,17 +419,18 @@ class TGenVisualization(Visualization):
         df = self.data
         df = df.dropna(subset=["fingerprints"])
         df = df[df.error_code.notna()]
-        for server in self.data["server"].unique():
+        for server in sorted(self.data["server"].unique()):
             df_server = df[df.server == server]
             df_server = split_data_frame_list(df_server, "fingerprints")
             if not df_server.empty:
+                df_to_plot = df_server['fingerprints'].value_counts().reset_index()
+                df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
                 if len(df_server['fingerprints'].value_counts()) >= threshold:
-                    df_to_plot = df_server['fingerprints'].value_counts().iloc[:threshold,]
-                else:
-                    df_to_plot = df_server['fingerprints'].value_counts()
+                    df_to_plot = df_to_plot.iloc[:threshold,]
+                df_to_plot = df_to_plot.set_index('index').squeeze()
                 df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
                 self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
-                      data=df_to_plot, ylabel="Count", xlabel="Fingerprint",
+                      data=df_to_plot.sort_values(['label']), ylabel="Count", xlabel="Fingerprint",
                       title="Top relays in circuits where transfer failed due to error - {0} service".format(server),
                       )
 
@@ -503,7 +510,7 @@ class TGenVisualization(Visualization):
         fig, ax = plt.subplots()
         if hue is not None:
             data = data.rename(columns={hue: hue_name})
-        g = sns.countplot(data=data.dropna(subset=[x]), x=x, hue=hue_name, order = data[x].value_counts().index)
+        g = sns.countplot(data=data, x=x, hue=hue_name, order=sorted(data[x].unique()))
         g.set(xlabel=xlabel, ylabel=ylabel, title=title)
         plt.xticks(rotation=100)
         sns.despine()
@@ -520,7 +527,7 @@ class TGenVisualization(Visualization):
         data = data.rename(columns={hue: hue_name})
         if data.empty:
             return
-        g = sns.stripplot(data=data, x=x, y=y, hue=hue_name, alpha=0.5)
+        g = sns.stripplot(data=data, x=x, y=y, hue=hue_name, alpha=0.7, order=sorted(data[y].unique()))
         g.set(title=title, xlabel=xlabel, ylabel=ylabel)
         plt.xticks(rotation=10)
         sns.despine()
