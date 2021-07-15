@@ -423,11 +423,13 @@ def measure(args):
     if args.torpath is not None: args.tgenpath = util.find_path(args.tgenpath, "tgen")
 
     #check regex
-    try:
-        stop_regex = re.compile(args.stopregex)
-    except Exception as e:
-        logging.error("Your regex \"{}\" contained an error: {}. Please fix to continue.".format(args.stopregex, e))
-        sys.exit(1)
+    stop_regex = None
+    if args.stopregex:
+        try:
+            stop_regex = re.compile(args.stopregex)
+        except Exception as e:
+            logging.error("Your regex \"{}\" contained an error: {}. Please fix to continue.".format(args.stopregex, e))
+            sys.exit(1)
 
     # validate paths and run
     if args.torpath is not None and args.tgenpath is not None:
