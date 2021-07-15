@@ -15,6 +15,7 @@ from stem.util import str_tools
 from stem.control import Controller
 from stem.version import Version, Requirement, get_system_tor_version
 from stem import __version__ as stem_version
+from onionperf.util import match_log
 
 class TGenConf(object):
     """Represents a TGen configuration, for both client and server."""
@@ -189,7 +190,7 @@ def logrotate_thread_task(writables, tgen_writable, torctl_writable, docroot, ni
 
 class Measurement(object):
 
-    def __init__(self, tor_bin_path, tgen_bin_path, datadir_path, privatedir_path, nickname, additional_client_conf=None, torclient_conf_file=None, torserver_conf_file=None, single_onion=False, drop_guards_interval_hours=0, newnym_interval_seconds=300):
+    def __init__(self, tor_bin_path, tgen_bin_path, datadir_path, privatedir_path, nickname, additional_client_conf=None, torclient_conf_file=None, torserver_conf_file=None, single_onion=False, drop_guards_interval_hours=0, newnym_interval_seconds=300, stop_regex=None):
         self.tor_bin_path = tor_bin_path
         self.tgen_bin_path = tgen_bin_path
         self.datadir_path = datadir_path
@@ -206,6 +207,7 @@ class Measurement(object):
         self.single_onion = single_onion
         self.drop_guards_interval_hours = drop_guards_interval_hours
         self.newnym_interval_seconds = newnym_interval_seconds
+        self.stop_regex = stop_regex
 
     def run(self, do_onion=True, do_inet=True, tgen_model=None, tgen_client_conf=None, tgen_server_conf=None):
         '''
@@ -291,6 +293,18 @@ class Measurement(object):
                 logging.info("Bootstrapping finished, entering heartbeat loop")
                 time.sleep(1)
                 while True:
+                    if self.stop_regex:
+                        logging.info("Using specified regex: {}".format(self.stop_regex.pattern))
+                        while True:
+                            match = util.match_log(self.stop_regex, torctl_client_writable.filename)
+                            if match:
+                                logging.info("The specified regex {} has been matched. OnionPerf will now shut down.".format(self.stop_regex.pattern))
+                                break
+                            time.sleep(1)
+                        else:
+                            continue
+                        break
+
                     if tgen_model.num_transfers:
                         # This function blocks until our TGen client process
                         # terminated on its own.

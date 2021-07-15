@@ -1,10 +1,13 @@
-# Changes in version 1.0 - 2020-0?-??
+# Changes in version 1.0 - 2021-0?-??
 
 - Ensure tgen transfers do not overlap. Fixes #40026
 - Process datetime objs for errors/time plot. Fixes #40016
 - Bump Seaborn version to 0.11
 - Add tests for the data-processing parts of the visualisation code.
   Fixes #40013. 
+- Add new command line argument, `--stop-at`, that takes
+  a regex or string to match in the Tor control port logs,
+  and stops OnionPerf when a match is detected. Implements #40014.
 
 # Changes in version 0.9 - 2020-04-20
 
