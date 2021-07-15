@@ -277,8 +277,7 @@ def main():
     measure_parser.add_argument('--stop-at',
         help="""A regex to match against Tor client control port logs for stopping measurements""",
         metavar="STRING", type=str,
-        action="store", dest="stopregex",
-        )
+        action="store", dest="stopregex")
     # analyze
     analyze_parser = sub_parser.add_parser('analyze', description=DESC_ANALYZE, help=HELP_ANALYZE,
         formatter_class=my_formatter_class)

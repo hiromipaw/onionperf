@@ -207,7 +207,7 @@ class Measurement(object):
         self.single_onion = single_onion
         self.drop_guards_interval_hours = drop_guards_interval_hours
         self.newnym_interval_seconds = newnym_interval_seconds
-        self.stop_regex= stop_regex
+        self.stop_regex = stop_regex
 
     def run(self, do_onion=True, do_inet=True, tgen_model=None, tgen_client_conf=None, tgen_server_conf=None):
         '''
@@ -298,8 +298,7 @@ class Measurement(object):
                         while True:
                             match = util.match_log(self.stop_regex, torctl_client_writable.filename)
                             if match:
-                                logging.info(
-                                    "The specified regex {} has been matched. OnionPerf will now shut down.".format(self.stop_regex.pattern))
+                                logging.info("The specified regex {} has been matched. OnionPerf will now shut down.".format(self.stop_regex.pattern))
                                 break
                             time.sleep(1)
                         else:

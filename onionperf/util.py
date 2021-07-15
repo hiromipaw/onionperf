@@ -5,8 +5,8 @@
   See LICENSE for licensing information
 '''
 
-import sys, os, socket, logging, random, re, shutil, datetime, urllib.request, urllib.parse, urllib.error, gzip, lzma, \
-    requests
+import sys, os, socket, logging, random, re, shutil, datetime, gzip, lzma, requests
+import urllib.request, urllib.parse, urllib.error
 from threading import Lock
 from io import StringIO
 from abc import ABCMeta, abstractmethod
