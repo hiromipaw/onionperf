@@ -64,11 +64,11 @@ class Visualization(object, metaclass=ABCMeta):
 
 class TGenVisualization(Visualization):
 
-    def plot_all(self, output_prefix, categories, percentile, threshold):
+    def plot_all(self, output_prefix, categories, percentile, threshold, onion, public):
         if len(self.datasets) > 0:
             prefix = output_prefix + '.' if output_prefix is not None else ''
             ts = time.strftime("%Y-%m-%d_%H:%M:%S")
-            self.__extract_data_frame()
+            self.__extract_data_frame(onion=onion, public=public)
             self.data.to_csv("{0}onionperf.viz.{1}.csv".format(prefix, ts))
             if "base" in categories:
                 sns.set_context("paper")
@@ -97,7 +97,7 @@ class TGenVisualization(Visualization):
                 self.__plot_top_errors(threshold)
                 self.page.close()
 
-    def __extract_data_frame(self):
+    def __extract_data_frame(self, onion, public):
         streams = []
         for (analyses, label) in self.datasets:
             tor_guards_by_client = {}
@@ -254,6 +254,10 @@ class TGenVisualization(Visualization):
                         if keep_stream:
                            streams.append(stream)
         self.data = pd.DataFrame.from_records(streams, index="id")
+        if onion:
+            self.data = self.data[(self.data["server"] != 'public')]
+        if public:
+            self.data = self.data[(self.data["server"] != 'onion')]
 
     def __plot_firstbyte_ecdf(self):
         for server in self.data["server"].unique():
@@ -375,7 +379,7 @@ class TGenVisualization(Visualization):
             df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
             self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
                           data=df_to_plot.sort_values(by=['label']), ylabel="Count", xlabel="Fingerprint",
-                          title="Relays appearing in both public and onion TTLB datasets",
+                          title="Relays appearing in all TTFB datasets",
                           )
 
     def __plot_lastbyte_outliers(self, quantile, threshold):
@@ -412,7 +416,7 @@ class TGenVisualization(Visualization):
             df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
             self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
                           data=df_to_plot.sort_values(['label']), ylabel="Count", xlabel="Fingerprint",
-                          title="Relays appearing in both public and onion TTLB datasets",
+                          title="Relays appearing in all TTLB datasets",
                           )
 
     def __plot_top_errors(self, threshold):
