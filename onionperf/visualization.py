@@ -17,20 +17,23 @@ import datetime
 import numpy as np
 import logging
 
-def split_data_frame_list(df, target_column):
+def split_data_frame_list(df, target_column, position_column):
     """ df :: dataframe to split,
     target_column :: the column containing the list of values to split
     returns :: a dataframe with each list entry in the target column separated into its elements,
     and each element moved into a new row.
     The values in the other columns are duplicated across the newly created rows.
     """
-    def split_list_to_rows(row, row_accumulator, target_column):
+    def split_fingerprints_to_rows(row, row_accumulator, target_column, position_column):
+        count = 0
         for s in row[target_column]:
+            count +=1
             new_row = row.to_dict()
             new_row[target_column] = s
+            new_row[position_column] = count
             row_accumulator.append(new_row)
     new_rows = []
-    df.apply(split_list_to_rows, axis=1, args=(new_rows, target_column))
+    df.apply(split_fingerprints_to_rows, axis=1, args=(new_rows, target_column, position_column))
     new_df = pd.DataFrame(new_rows)
     return new_df
 
@@ -48,6 +51,14 @@ def count_common_rows(df_list, target_column):
         ind2 = df[target_column].isin(main_df[target_column])
         main_df = main_df[ind].append(df[ind2])
     return main_df
+
+def add_position_to_fingerprint(fingerprint, position, server):
+    pos = None
+    if server == "public" and position == 3:
+        pos = "Exit"
+    if pos:
+        return f"{fingerprint} ({pos})"
+    return fingerprint
 
 class Visualization(object, metaclass=ABCMeta):
 
@@ -348,7 +359,8 @@ class TGenVisualization(Visualization):
         for server in sorted(self.data["server"].unique()):
             df_server = df[df.server == server]
             df_server = df_server[df_server.time_to_first_byte > df_server.time_to_first_byte.quantile(quantile)]
-            df_server = split_data_frame_list(df_server, "fingerprints")
+            df_server = split_data_frame_list(df_server, "fingerprints", "position")
+            df_server["fingerprints_pos"] = df_server.apply(lambda x: add_position_to_fingerprint(x["fingerprints"], x["position"], x["server"]), axis=1)
             if not df_server.empty:
                 all_data.append(df_server)
                 # If the data frame contains more relays (fingerprints) than the specified threshold n,
@@ -363,7 +375,7 @@ class TGenVisualization(Visualization):
                 df_to_plot = df_to_plot.set_index('index').squeeze()
 
                 df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
-                self.__draw_stripplot(x="time_to_first_byte", y="fingerprints", hue="label", hue_name="Data set",
+                self.__draw_stripplot(x="time_to_first_byte", y="fingerprints_pos", hue="label", hue_name="Data set",
                                       data=df_to_plot.sort_values(by=['label']),
                                       xlabel="Time to first byte", ylabel="Fingerprint",
                                       title="TTFB from {0} service".format(server),
@@ -377,7 +389,8 @@ class TGenVisualization(Visualization):
                 df_to_plot = df_to_plot.iloc[:threshold, ]
             df_to_plot = df_to_plot.set_index('index').squeeze()
             df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
-            self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
+
+            self.__draw_countplot(x="fingerprints_pos", hue="label", hue_name="Data set",
                           data=df_to_plot.sort_values(by=['label']), ylabel="Count", xlabel="Fingerprint",
                           title="Relays appearing in all TTFB datasets",
                           )
@@ -390,7 +403,9 @@ class TGenVisualization(Visualization):
         for server in sorted(self.data["server"].unique()):
             df_server = df[df.server == server]
             df_server = df_server[df_server.time_to_last_byte > df_server.time_to_last_byte.quantile(quantile)]
-            df_server = split_data_frame_list(df_server, "fingerprints")
+            df_server = split_data_frame_list(df_server, "fingerprints", "position")
+            df_server["fingerprints_pos"] = df_server.apply(lambda x: add_position_to_fingerprint(x["fingerprints"], x["position"], x["server"]), axis=1)
+
             if not df_server.empty:
                 all_data.append(df_server)
                 df_to_plot = df_server['fingerprints'].value_counts().reset_index()
@@ -400,7 +415,7 @@ class TGenVisualization(Visualization):
                 df_to_plot = df_to_plot.set_index('index').squeeze()
 
                 df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
-                self.__draw_stripplot(x="time_to_last_byte", y="fingerprints", hue="label", hue_name="Data set",
+                self.__draw_stripplot(x="time_to_last_byte", y="fingerprints_pos", hue="label", hue_name="Data set",
                                       data=df_to_plot.sort_values(['label']),
                                       xlabel="Time to last byte", ylabel="Fingerprint",
                                       title="TTLB from {0} service".format(server),
@@ -425,7 +440,7 @@ class TGenVisualization(Visualization):
         df = df[df.error_code.notna()]
         for server in sorted(self.data["server"].unique()):
             df_server = df[df.server == server]
-            df_server = split_data_frame_list(df_server, "fingerprints")
+            df_server = split_data_frame_list(df_server, "fingerprints", "position")
             if not df_server.empty:
                 df_to_plot = df_server['fingerprints'].value_counts().reset_index()
                 df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
