@@ -5,7 +5,10 @@
   See LICENSE for licensing information
 '''
 
-import matplotlib; matplotlib.use('Agg')  # for systems without X11
+import matplotlib;
+import pandas
+
+matplotlib.use('Agg')  # for systems without X11
 from matplotlib.backends.backend_pdf import PdfPages
 import time, re
 from abc import abstractmethod, ABCMeta
@@ -103,10 +106,16 @@ class TGenVisualization(Visualization):
                 else:
                     sns.set(rc={"figure.figsize":(15, 10)})
 
-                self.__plot_firstbyte_outliers(percentile/100.0, threshold)
-                self.__plot_lastbyte_outliers(percentile/100.0, threshold)
-                self.__plot_top_errors(threshold)
+                firstbyte_csv = self.__plot_firstbyte_outliers(percentile/100.0, threshold)
+                lastbyte_csv = self.__plot_lastbyte_outliers(percentile/100.0, threshold)
+                errors_csv = self.__plot_top_errors(threshold)
                 self.page.close()
+                if not firstbyte_csv.empty:
+                    firstbyte_csv.to_csv("{0}onionperf.firstbyte_outliers.{1}.csv".format(prefix, ts), index=False)
+                if not lastbyte_csv.empty:
+                    lastbyte_csv.to_csv("{0}onionperf.lastbyte_outliers.{1}.csv".format(prefix, ts), index=False)
+                if not errors_csv.empty:
+                    errors_csv.to_csv("{0}onionperf.error_outliers.{1}.csv".format(prefix, ts), index=False)
 
     def __extract_data_frame(self, onion, public):
         streams = []
@@ -382,6 +391,7 @@ class TGenVisualization(Visualization):
                                       )
                 # find common outliers across onion and public datasets
         count_df = count_common_rows(all_data, "fingerprints")
+        csv_df = pandas.DataFrame()
         if not count_df.empty:
             df_to_plot = count_df['fingerprints'].value_counts().reset_index()
             df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
@@ -389,11 +399,15 @@ class TGenVisualization(Visualization):
                 df_to_plot = df_to_plot.iloc[:threshold, ]
             df_to_plot = df_to_plot.set_index('index').squeeze()
             df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
+            csv_df = df_to_plot[["fingerprints", "server"]]\
+                .groupby(["fingerprints", "server"]).size()\
+                .reset_index(name='count')
 
             self.__draw_countplot(x="fingerprints_pos", hue="label", hue_name="Data set",
                           data=df_to_plot.sort_values(by=['label']), ylabel="Count", xlabel="Fingerprint",
                           title="Relays appearing in all TTFB datasets",
                           )
+        return csv_df
 
     def __plot_lastbyte_outliers(self, quantile, threshold):
         df = self.data
@@ -422,6 +436,7 @@ class TGenVisualization(Visualization):
                                       )
             # find common outliers across onion and public datasets
         count_df = count_common_rows(all_data, "fingerprints")
+        csv_df = pandas.DataFrame()
         if not count_df.empty:
             df_to_plot = count_df['fingerprints'].value_counts().reset_index()
             df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
@@ -429,29 +444,44 @@ class TGenVisualization(Visualization):
                 df_to_plot = df_to_plot.iloc[:threshold, ]
             df_to_plot = df_to_plot.set_index('index').squeeze()
             df_to_plot = count_df[count_df['fingerprints'].map(df_to_plot) >= 1]
-            self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
+            csv_df = df_to_plot[["fingerprints", "server"]]\
+                .groupby(["fingerprints", "server"]).size()\
+                .reset_index(name='count')
+            self.__draw_countplot(x="fingerprints_pos", hue="label", hue_name="Data set",
                           data=df_to_plot.sort_values(['label']), ylabel="Count", xlabel="Fingerprint",
                           title="Relays appearing in all TTLB datasets",
                           )
+        return csv_df
 
     def __plot_top_errors(self, threshold):
         df = self.data
         df = df.dropna(subset=["fingerprints"])
         df = df[df.error_code.notna()]
+        csv_df = []
         for server in sorted(self.data["server"].unique()):
             df_server = df[df.server == server]
             df_server = split_data_frame_list(df_server, "fingerprints", "position")
+
             if not df_server.empty:
+                df_server["fingerprints_pos"] = df_server.apply(
+                    lambda x: add_position_to_fingerprint(x["fingerprints"], x["position"], x["server"]), axis=1)
+
                 df_to_plot = df_server['fingerprints'].value_counts().reset_index()
                 df_to_plot = df_to_plot.sort_values(['fingerprints', 'index'], ascending=[False, True])
                 if len(df_server['fingerprints'].value_counts()) >= threshold:
                     df_to_plot = df_to_plot.iloc[:threshold,]
                 df_to_plot = df_to_plot.set_index('index').squeeze()
                 df_to_plot = df_server[df_server['fingerprints'].map(df_to_plot) >= 1]
-                self.__draw_countplot(x="fingerprints", hue="label", hue_name="Data set",
+                csv_df.append(df_to_plot[["fingerprints", "server"]] \
+                    .groupby(["fingerprints", "server"]).size() \
+                    .reset_index(name='count'))
+                self.__draw_countplot(x="fingerprints_pos", hue="label", hue_name="Data set",
                       data=df_to_plot.sort_values(['label']), ylabel="Count", xlabel="Fingerprint",
                       title="Top relays in circuits where transfer failed due to error - {0} service".format(server),
                       )
+        if csv_df:
+            return pd.concat(csv_df)
+        return pandas.DataFrame()
 
     def __draw_ecdf(self, x, hue, hue_name, data, title, xlabel, ylabel):
         data = data.dropna(subset=[x])
