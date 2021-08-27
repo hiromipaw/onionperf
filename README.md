@@ -316,9 +316,9 @@ outlier relays in the TTFB (time to first byte) dataset, for public service meas
 - Common outliers in the TTFB and TTLB dataset across both public and onion service measurements
 - Relays most seen in circuits that failed with errors for both public and onion measurements
 
-By default, we consider measurement results in the 90th percentile and only display the top 15 fingerprints that appear the most by count. This can be changed with command line arguments:
+By default, we consider measurement results in the 75th percentile and only display the top 15 fingerprints that appear the most by count. This can be changed with command line arguments:
 ```shell
-onionperf visualize -d <file(s)> label --percentile 75 --threshold 50
+onionperf visualize -d <file(s)> label --percentile 90 --threshold 50
 ```
 
 ### Interpreting the CSV output format
