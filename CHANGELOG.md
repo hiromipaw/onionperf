@@ -1,4 +1,4 @@
-# Changes in version 1.0 - 2021-0?-??
+# Changes in version 1.0 - 2022-05-17
 
 - Ensure tgen transfers do not overlap. Fixes #40026
 - Process datetime objs for errors/time plot. Fixes #40016
