@@ -190,7 +190,7 @@ def logrotate_thread_task(writables, tgen_writable, torctl_writable, docroot, ni
 
 class Measurement(object):
 
-    def __init__(self, tor_bin_path, tgen_bin_path, datadir_path, privatedir_path, nickname, additional_client_conf=None, torclient_conf_file=None, torserver_conf_file=None, single_onion=False, drop_guards_interval_hours=0, newnym_interval_seconds=300, stop_regex=None):
+    def __init__(self, tor_bin_path, tgen_bin_path, datadir_path, privatedir_path, nickname, additional_client_conf=None, torclient_conf_file=None, torserver_conf_file=None, single_onion=False, drop_guards_interval_hours=0, exclude_cbt=False, newnym_interval_seconds=300, stop_regex=None):
         self.tor_bin_path = tor_bin_path
         self.tgen_bin_path = tgen_bin_path
         self.datadir_path = datadir_path
@@ -206,6 +206,7 @@ class Measurement(object):
         self.torserver_conf_file = torserver_conf_file
         self.single_onion = single_onion
         self.drop_guards_interval_hours = drop_guards_interval_hours
+        self.exclude_cbt = exclude_cbt
         self.newnym_interval_seconds = newnym_interval_seconds
         self.stop_regex = stop_regex
 
@@ -352,7 +353,7 @@ class Measurement(object):
     def __start_log_processors(self, general_writables, tgen_writable, torctl_writable):
         # rotate the log files, and then parse out the measurement data
         analysis_args = defaultdict()
-        analysis_args["exclude_cbt"] = False
+        analysis_args["exclude_cbt"] = self.exclude_cbt
         if self.drop_guards_interval_hours != 0:
             analysis_args["exclude_cbt"] = True
         logrotate_args = (general_writables, tgen_writable, torctl_writable, self.www_docroot, self.nickname, self.done_event, analysis_args)
@@ -373,7 +374,7 @@ class Measurement(object):
 
         tgen_confpath = "{0}/tgen.graphml.xml".format(tgen_datadir)
         if os.path.exists(tgen_confpath): os.remove(tgen_confpath)
-        
+
         if tgen_model_conf.socks_port is None:
             model.ListenModel(tgen_port="{0}".format(tgen_model_conf.port)).dump_to_file(tgen_confpath)
             logging.info("TGen server running at 0.0.0.0:{0}".format(tgen_model_conf.port))
@@ -433,7 +434,7 @@ WarnUnsafeSocks 0\nSafeLogging 0\nMaxCircuitDirtiness 60 seconds\nDataDirectory 
                             hs_port_mapping,
                             key_path):
         logging.info("Creating ephemeral hidden service...")
-    
+
         with Controller.from_port(port=control_port) as torctl:
             torctl.authenticate()
             if not os.path.exists(key_path):
@@ -456,7 +457,7 @@ WarnUnsafeSocks 0\nSafeLogging 0\nMaxCircuitDirtiness 60 seconds\nDataDirectory 
                     key_type=key_type)
             self.hs_v3_service_id = response.service_id
             self.hs_v3_control_port = control_port
-    
+
             logging.info("Ephemeral hidden service is available at {0}.onion".format(response.service_id))
         return response.service_id
 

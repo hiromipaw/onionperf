@@ -239,6 +239,13 @@ def main():
         action="store", dest="drop_guards_interval_hours",
         default=0)
 
+    measure_parser.add_argument('--exclude-cbt',
+        help="""exclude Tor circuits without known circuit path or
+                launched at a time when the Circuit Build Timeout was not known.
+                Useful for filtering guard-related measurements.""",
+        action="store_true", dest="exclude_cbt",
+        default=False)
+
     onion_or_inet_only_group = measure_parser.add_mutually_exclusive_group()
 
     onion_or_inet_only_group.add_argument('-o', '--onion-only',

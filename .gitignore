@@ -6,3 +6,6 @@ venv
 *.csv
 *.pyc
 .coverage
+*.egg-info
+build
+dist 
