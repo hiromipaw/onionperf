@@ -8,4 +8,5 @@ venv
 .coverage
 *.egg-info
 build
-dist 
+dist
+tests/data/analyses/onionperf.analysis.json.xz
