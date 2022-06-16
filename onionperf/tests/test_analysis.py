@@ -1,7 +1,10 @@
+import json
+import lzma
 import os
 import pkg_resources
 from nose.tools import *
 from onionperf import util
+from onionperf.analysis import OPAnalysis
 from tgentools import analysis
 
 
@@ -152,3 +155,23 @@ def test_stream_object_end_to_end():
 def test_parsing_parse_error():
     parser = analysis.TGenParser()
     parser.parse(util.DataSource(DATA_DIR + 'parse_error'))
+
+def test_exclude_cbt_option():
+    analysis = OPAnalysis()
+    analysis.add_tgen_file(absolute_data_path("logs/onionperf.tgen.log"))
+    analysis.add_torctl_file(absolute_data_path("logs/onionperf.torctl.log"))
+    analysis.analyze(exclude_cbt=True)
+    analysis.save(output_prefix=absolute_data_path("analyses"))
+    xz_file = lzma.open(absolute_data_path("analyses/onionperf.analysis.json.xz"))
+    json_content = json.load(xz_file)
+    assert_equals(json_content["filters"], json.loads('{"tor/circuits": [{"name": "exclude_cbt"}]}'))
+
+def test_exclude_cbt_option_default():
+    analysis = OPAnalysis()
+    analysis.add_tgen_file(absolute_data_path("logs/onionperf.tgen.log"))
+    analysis.add_torctl_file(absolute_data_path("logs/onionperf.torctl.log"))
+    analysis.analyze()
+    analysis.save(output_prefix=absolute_data_path("analyses"))
+    xz_file = lzma.open(absolute_data_path("analyses/onionperf.analysis.json.xz"))
+    json_content = json.load(xz_file)
+    assert_false(json_content.get("filters"))
