@@ -60,7 +60,7 @@ Alternatively, Tor can be built from source:
 ```shell
 sudo apt install automake build-essential libevent-dev libssl-dev zlib1g-dev
 cd ~/
-git clone https://git.torproject.org/tor.git
+git clone https://gitlab.torproject.org/tpo/core/tor.git
 cd tor/
 ./autogen.sh
 ./configure --disable-asciidoc
@@ -105,7 +105,7 @@ The last command should output something like `~/venv/bin/python3` as the path t
 The next step is to clone the OnionPerf repository and install its requirements:
 
 ```shell
-git clone https://git.torproject.org/onionperf.git
+git clone https://gitlab.torproject.org/tpo/network-health/metrics/onionperf.git
 pip3 install --no-cache -r onionperf/requirements.txt
 ```
 
@@ -192,7 +192,7 @@ OnionPerf generates Tor configurations for both client-side and server-side `tor
 - If the `--torclient-conf-file`  and/or  `--torserver-conf-file`  command-line arguments are given, the contents of those files are appended to the configurations of client-side and/or server-side `tor` process.
 - If the `--additional-client-conf` command-line argument is given, its content is appended to the configuration of the client-side  `tor`  process.
 
-These options can be used, for example, to change the default measurement setup use bridges (or pluggable transports) by passing bridge addresses as additional client configuration lines as follows:
+These options can be used, for example, to change the default measurement setup to use bridges (or pluggable transports) by passing bridge addresses as additional client configuration lines as follows:
 
 ```shell
 onionperf measure --additional-client-conf="UseBridges 1\nBridge 72.14.177.231:9001 AC0AD4107545D4AF2A595BC586255DEA70AF119D\nBridge 195.91.239.8:9001 BA83F62551545655BBEBBFF353A45438D73FD45A\nBridge 148.63.111.136:35577 768C8F8313FF9FF8BBC915898343BC8B238F3770"
@@ -309,10 +309,9 @@ The base PDF output file contains visualizations of the following metrics:
 - Number and type of failures.
 
 The measurement outliers PDF output file contains visualizations of the following metrics:
-outlier relays in the TTFB (time to first byte) dataset, for public service measurements
 
-- Outlier relays in the TTFB and TTLB datasets, for onion service measurements
-
+- Outlier relays in the TTFB (time to first byte) dataset, for public service measurements
+- Outlier relays in the TTFB and TTLB (time to last byte) datasets, for onion service measurements
 - Common outliers in the TTFB and TTLB dataset across both public and onion service measurements
 - Relays most seen in circuits that failed with errors for both public and onion measurements
 
