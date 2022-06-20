@@ -4,7 +4,7 @@ import os
 import pkg_resources
 from nose.tools import *
 from onionperf import util
-from onionperf.analysis import OPAnalysis
+from onionperf.analysis import OPAnalysis, TorCtlParser
 from tgentools import analysis
 
 
@@ -155,6 +155,12 @@ def test_stream_object_end_to_end():
 def test_parsing_parse_error():
     parser = analysis.TGenParser()
     parser.parse(util.DataSource(DATA_DIR + 'parse_error'))
+
+def test_handle_buildtimeout():
+    parser = TorCtlParser(exclude_cbt=True)
+    line = "2019-01-10 14:45:06 1547131506.44 650 BUILDTIMEOUT_SET COMPUTED TOTAL_TIMES=205 TIMEOUT_MS=1500 XM=225 ALPHA=2.060204 CUTOFF_QUANTILE=0.800000 TIMEOUT_RATE=0.009804 CLOSE_MS=60000 CLOSE_RATE=0.000000\r\n"
+    parser._TorCtlParser__parse_line(line)
+    assert_true(parser.cbt_set)
 
 def test_exclude_cbt_option():
     analysis = OPAnalysis()
