@@ -15,6 +15,7 @@ class Filtering(object):
         self.fingerprints_to_include = None
         self.fingerprints_to_exclude = None
         self.exclude_cbt = False
+        self.guards = False
         self.fingerprint_pattern = re.compile("\$?([0-9a-fA-F]{40})")
 
     def include_fingerprints(self, path):
@@ -73,19 +74,29 @@ class Filtering(object):
                 if "path" in tor_circuit:
                     path = tor_circuit["path"]
                     keep = True
-                    for long_name, _ in path:
-                        fingerprint_match = self.fingerprint_pattern.match(long_name)
-                        if fingerprint_match:
-                            fingerprint = fingerprint_match.group(1).upper()
-                            if self.fingerprints_to_include is not None and fingerprint not in self.fingerprints_to_include:
-                                keep = False
+                    if self.guards:
+                        long_name, _ = path[0]
+                        keep = self.__fingerprint_path_match(long_name)
+                    else:
+                        for long_name, _ in path:
+                            keep = self.__fingerprint_path_match(long_name)
+                            if not keep:
                                 break
-                            if self.fingerprints_to_exclude is not None and fingerprint in self.fingerprints_to_exclude:
-                                keep = False
-                                break
+
                 if not keep:
                     tor_circuits[circuit_id]["filtered_out"] = True
                     tor_circuits[circuit_id] = dict(sorted(tor_circuit.items()))
+
+    def __fingerprint_path_match(self, long_name):
+        keep = True
+        fingerprint_match = self.fingerprint_pattern.match(long_name)
+        if fingerprint_match:
+            fingerprint = fingerprint_match.group(1).upper()
+            if self.fingerprints_to_include is not None and fingerprint not in self.fingerprints_to_include:
+                keep = False
+            if self.fingerprints_to_exclude is not None and fingerprint in self.fingerprints_to_exclude:
+                keep = False
+        return keep
 
     def apply_filters(self, input_path, output_dir, output_file):
         analysis = OPAnalysis.load(filename=input_path)
@@ -93,4 +104,3 @@ class Filtering(object):
         analysis.json_db["version"] = '3.1'
         analysis.json_db = dict(sorted(analysis.json_db.items()))
         analysis.save(filename=output_file, output_prefix=output_dir, sort_keys=False)
-
