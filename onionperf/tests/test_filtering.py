@@ -1,7 +1,5 @@
 import json
-import json
 import lzma
-import os
 import pkg_resources
 
 from nose.tools import *
