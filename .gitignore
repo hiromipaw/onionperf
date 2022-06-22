@@ -9,3 +9,4 @@ venv
 *.egg-info
 build
 dist
+tests/data/analyses/onionperf.analysis.json.xz
