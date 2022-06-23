@@ -16,6 +16,7 @@ class Filtering(object):
         self.fingerprints_to_exclude = None
         self.exclude_cbt = False
         self.guards = False
+        self.exits = False
         self.fingerprint_pattern = re.compile("\$?([0-9a-fA-F]{40})")
 
     def include_fingerprints(self, path):
@@ -77,6 +78,14 @@ class Filtering(object):
                     if self.guards:
                         long_name, _ = path[0]
                         keep = self.__fingerprint_path_match(long_name)
+                    elif self.exits:
+                        streams = analysis.get_tor_streams(source)
+                        s = list(filter(lambda x:x["circuit_id"] == circuit_id, streams.values()))
+                        if s:
+                            s = s.pop()
+                            if not ".onion:" in s["target"]:
+                                long_name, _ = path[-1]
+                                keep = self.__fingerprint_path_match(long_name)
                     else:
                         for long_name, _ in path:
                             keep = self.__fingerprint_path_match(long_name)
