@@ -80,7 +80,7 @@ def test_exclude_exits():
     filtering.fingerprints_to_exclude.append(exit)
     filtering.fingerprints_to_exclude.append(fingerprint)
     filtering.fingerprints_to_exclude.append(onion)
-    filtering.fingerprints_to_exclude_path = absolute_data_path("analyses/guards-fingerprints.txt")
+    filtering.fingerprints_to_exclude_path = absolute_data_path("analyses/exits-fingerprints.txt")
     input_path = absolute_data_path("analyses/2021-06-01.op-hk6a.onionperf.analysis_no_filters.json.xz")
     output_dir = absolute_data_path("analyses/")
     output_file = "filtered-exits-onionperf.analysis.json.xz"
