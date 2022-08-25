@@ -296,9 +296,6 @@ class TGenVisualization(Visualization):
             mean_value = self.data[self.data["server"] == server]["time_to_first_byte"].mean()
             self.__append_to_stats("time_to_first_byte", server, 'mean', mean_value)
 
-
-
-
     def __plot_firstbyte_time(self):
         for bytes in np.sort(self.data["filesize_bytes"].unique()):
             for server in self.data["server"].unique():
@@ -312,7 +309,6 @@ class TGenVisualization(Visualization):
                 self.__append_to_stats("time_to_first_byte_{}".format(bytes), server, 'median', median_value)
                 mean_value = df.mean()
                 self.__append_to_stats("time_to_first_byte_{}".format(bytes), server, 'mean', mean_value)
-
 
     def __plot_lastbyte_ecdf(self):
         for bytes in np.sort(self.data["filesize_bytes"].unique()):
