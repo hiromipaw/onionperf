@@ -87,6 +87,7 @@ class TGenVisualization(Visualization):
             if "base" in categories:
                 sns.set_context("paper")
                 self.page = PdfPages("{0}onionperf.viz.{1}.pdf".format(prefix, ts))
+                self.stats = pd.DataFrame(columns=['stats', 'server', 'metric', 'value'])
                 self.__plot_firstbyte_ecdf()
                 self.__plot_firstbyte_time()
                 self.__plot_lastbyte_ecdf()
@@ -97,6 +98,7 @@ class TGenVisualization(Visualization):
                 self.__plot_downloads_count()
                 self.__plot_errors_count()
                 self.__plot_errors_time()
+                self.stats.to_csv("{0}onionperf.viz.stats.{1}.csv".format(prefix, ts), index=False)
                 self.page.close()
             if "outliers" in categories:
                 # plot outliers in a separate pdf
@@ -279,12 +281,23 @@ class TGenVisualization(Visualization):
         if public:
             self.data = self.data[(self.data["server"] != 'onion')]
 
+    def __append_to_stats(self, stat, server, metric, value):
+        s_row = pd.Series([stat, server, metric, value], index=self.stats.columns)
+        self.stats.loc[len(self.stats.index)] = s_row
+
     def __plot_firstbyte_ecdf(self):
         for server in self.data["server"].unique():
             self.__draw_ecdf(x="time_to_first_byte", hue="label", hue_name="Data set",
                              data=self.data[self.data["server"] == server],
                              title="Time to download first byte from {0} service".format(server),
                              xlabel="Download time (s)", ylabel="Cumulative Fraction")
+            median_value = self.data[self.data["server"] == server]["time_to_first_byte"].median()
+            self.__append_to_stats("time_to_first_byte", server, 'median', median_value)
+            mean_value = self.data[self.data["server"] == server]["time_to_first_byte"].mean()
+            self.__append_to_stats("time_to_first_byte", server, 'mean', mean_value)
+
+
+
 
     def __plot_firstbyte_time(self):
         for bytes in np.sort(self.data["filesize_bytes"].unique()):
@@ -293,6 +306,13 @@ class TGenVisualization(Visualization):
                                      data=self.data[(self.data["server"] == server) & (self.data["filesize_bytes"] == bytes)],
                                      title="Time to download first of {0} bytes from {1} service over time".format(bytes, server),
                                      xlabel="Download start time", ylabel="Download time (s)")
+                df = self.data[self.data["server"] == server]
+                df = df[df["filesize_bytes"] == bytes]["time_to_first_byte"]
+                median_value = df.median()
+                self.__append_to_stats("time_to_first_byte_{}".format(bytes), server, 'median', median_value)
+                mean_value = df.mean()
+                self.__append_to_stats("time_to_first_byte_{}".format(bytes), server, 'mean', mean_value)
+
 
     def __plot_lastbyte_ecdf(self):
         for bytes in np.sort(self.data["filesize_bytes"].unique()):
@@ -301,6 +321,12 @@ class TGenVisualization(Visualization):
                                  data=self.data[(self.data["server"] == server) & (self.data["filesize_bytes"] == bytes)],
                                  title="Time to download last of {0} bytes from {1} service".format(bytes, server),
                                  xlabel="Download time (s)", ylabel="Cumulative Fraction")
+                df = self.data[self.data["server"] == server]
+                df = df[df["filesize_bytes"] == bytes]["time_to_last_byte"]
+                median_value = df.median()
+                self.__append_to_stats("time_to_last_byte_{}".format(bytes), server, 'median', median_value)
+                mean_value = df.mean()
+                self.__append_to_stats("time_to_last_byte_{}".format(bytes), server, 'mean', mean_value)
 
     def __plot_lastbyte_box(self):
         for bytes in np.sort(self.data["filesize_bytes"].unique()):
@@ -332,6 +358,9 @@ class TGenVisualization(Visualization):
                              data=self.data[self.data["server"] == server],
                              title="Throughput when downloading from {0} server".format(server),
                              xlabel="Throughput (Mbps)", ylabel="Cumulative Fraction")
+            df = self.data[self.data["server"] == server]["mbps"]
+            median_value = df.median()
+            self.__append_to_stats("mbps", server, 'median', median_value)
 
     def __plot_downloads_count(self):
         for bytes in np.sort(self.data["filesize_bytes"].unique()):
@@ -340,6 +369,10 @@ class TGenVisualization(Visualization):
                                      data=self.data[(self.data["server"] == server) & (self.data["filesize_bytes"] == bytes)],
                                      xlabel="Data set", ylabel="Downloads completed (#)",
                                      title="Number of downloads of {0} bytes completed from {1} service".format(bytes, server))
+                df = self.data[self.data["server"] == server]
+                df = df[df["filesize_bytes"] == bytes]
+                count_value = df.shape[0]
+                self.__append_to_stats("number_of_dowloads_of_bytes_{}".format(bytes), server, 'count', count_value)
 
     def __plot_errors_count(self):
         for server in self.data["server"].unique():
@@ -348,6 +381,15 @@ class TGenVisualization(Visualization):
                                       data=self.data[self.data["server"] == server],
                                       xlabel="Error code", ylabel="Downloads failed (#)",
                                       title="Number of downloads failed from {0} service".format(server))
+                df = self.data[self.data["server"] == server]
+                num_errors = 0
+                for error_code in df["error_code"].unique():
+                    if error_code != None:
+                        df_err = df[df["error_code"] == error_code]
+                        count_value = df_err.shape[0]
+                        num_errors += count_value
+                        self.__append_to_stats("number_of_dowloads_failed_with_error_{}".format(error_code), server, 'count', count_value)
+                self.__append_to_stats("number_of_dowloads_failed", server, 'count', num_errors)
 
     def __plot_errors_time(self):
         df = self.data
