@@ -14,7 +14,7 @@ from socket import gethostname
 import onionperf.util as util
 from onionperf.monitor import get_supported_torctl_events
 
-__version__ = '0.9'
+__version__ = '1.0'
 
 DESC_MAIN = """
 OnionPerf is a utility to monitor, measure, analyze, and visualize the
