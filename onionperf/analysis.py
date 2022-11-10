@@ -420,8 +420,12 @@ class TorCtlParser(Parser):
     def __handle_guard(self, event, arrival_dt):
         if event.guard_type != GuardType.ENTRY:
             return
-        if event.status == "GOOD_L2":
+        elif event.status == "GOOD_L2":
             return
+        elif event.status == "BAD_L2":
+            return
+        else:
+            pass
         fingerprint = event.endpoint_fingerprint
         nickname = event.endpoint_nickname
         guard = None
