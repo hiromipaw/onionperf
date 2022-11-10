@@ -1,10 +1,18 @@
+# Changes in version 1.1 - 2022-11-10
+
+- Check that torctl event status is not GOOD_L2/BAD_L2.
+- Add tests for filtering and visualization modes.
+- Require tgentools version 1.1.1.
+- Generate a csv file with various metrics at the visualization step.
+- Setup CI for onionperf repository.
+
 # Changes in version 1.0 - 2022-05-17
 
 - Ensure tgen transfers do not overlap. Fixes #40026
 - Process datetime objs for errors/time plot. Fixes #40016
 - Bump Seaborn version to 0.11
 - Add tests for the data-processing parts of the visualisation code.
-  Fixes #40013. 
+  Fixes #40013.
 - Add new command line argument, `--stop-at`, that takes
   a regex or string to match in the Tor control port logs,
   and stops OnionPerf when a match is detected. Implements #40014.
@@ -106,16 +114,15 @@
  - Remove 50 KiB and 1 MiB downloads. Implements #34023.
  - Remove existing Tor control log visualizations. Implements #34214.
  - Update to Networkx version 2.4. Fixes #34298.
- - Update time to first/last byte definitions to include the time 
-   between starting a measurement and receiving the first/last byte. 
+ - Update time to first/last byte definitions to include the time
+   between starting a measurement and receiving the first/last byte.
    Implements #34215.
- - Update `requirements.txt` to actual requirements, and switch from 
+ - Update `requirements.txt` to actual requirements, and switch from
    distutils to setuptools. Fixes #30586.
- - Split visualizations into public and onion service measurements. 
+ - Split visualizations into public and onion service measurements.
    Fixes #34216.
 
 # Changes from before 2020-04
 
  - Changes made before 2020-04 are not listed here. See `git log` for
    details.
-

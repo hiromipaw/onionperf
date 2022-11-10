@@ -41,6 +41,8 @@ OnionPerf does not interfere with how Tor selects paths and builds circuits, oth
 
 OnionPerf has several dependencies in order to perform measurements or analyze and visualize measurement results. These dependencies include Tor, TGen (traffic generator), and a few Python packages.
 
+Development dependencies are tracked in the `requirements.txt` file, while "production" dependencies are tracked in the setup.py file. 
+
 The following description was written with a Debian system in mind but should be transferable to other Linux distributions and possibly even other operating systems.
 
 ### Tor
@@ -344,4 +346,3 @@ For example, the [Tor Metrics website](https://metrics.torproject.org/torperf.ht
 The OnionPerf code is developed at https://gitlab.torproject.org/tpo/network-health/metrics/onionperf.
 
 Contributions to OnionPerf are welcome and encouraged!
-
